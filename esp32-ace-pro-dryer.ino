@@ -1,28 +1,33 @@
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+// Platform libraries.
+#include <Arduino.h>     // To add IntelliSense for platform constants.
 
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+// Read configuration and secrets.
+#include "config.h"
 
-#define SCREEN_WIDTH 128 
-#define SCREEN_HEIGHT 64 
+// Project classes.
+#include "DisplayManager.h"
 
-// Initialize display with internal charge pump (-1 means no hardware reset pin)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+DisplayManager displayManager;
+
+void setupSerial();
 
 void setup() {
-  // Pass SWITCHCAPVCC to generate 12V display voltage from 3.3V/5V internally
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
-    for(;;); // Halt if communication fails
-  }
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0,0);
-  display.println("Hello World!");
-  display.display();
+  setupSerial();
+  setupDisplay();
 }
 
 void loop() {}
+
+void setupSerial() {
+  Serial.begin(SERIAL_BAUD_RATE);
+  Serial.println();
+  Serial.println(F("setupSerial: Initializing serial connection DONE."));
+}
+
+void setupDisplay() {
+  if (!displayManager.setup()) {
+    for (;;) {
+    }
+  }
+  displayManager.printHelloWorld();
+}
