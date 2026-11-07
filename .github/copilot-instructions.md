@@ -7,13 +7,13 @@ Purpose
 Project summary (short)
 - Platform: ESP32 (ESP32-WROOM-32 profile is used).
 - Main sketch: `esp32-ace-pro-dryer.ino`.
-- Key hardware: Anycubic ACE Pro filament dryer (connected through USB), an SSD1306 display and a rotary encoder.
+- Key hardware: Anycubic ACE Pro filament dryer (connected through USB), an SSD1306 display and a KY-040 rotary encoder.
 - Important config: `config.h` defines pin mappings.
 - Libraries (versions in `sketch.yaml`): Adafruit BusIO, Adafruit GFX Library, Adafruit SSD1306.
 
 Read first
 - `esp32-ace-pro-dryer.ino` — main program flow and non-blocking loop structure.
-- `config.h` — authoritative pin mapping and network defaults. Any change to pins or network defaults requires explicit confirmation from the repo owner.
+- `config.h` — authoritative pin mapping and defaults. Any change to pins or defaults requires explicit confirmation from the repo owner.
 - `sketch.yaml` — board FQBN and library versions used to build.
 
 How to behave (high level)

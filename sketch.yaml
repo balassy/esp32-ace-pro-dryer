@@ -8,6 +8,7 @@ profiles:
       - Adafruit GFX Library (1.13.0)
       - Adafruit BusIO (1.17.4)
       - Adafruit SSD1306 (2.5.17)
+      - ESP32RotaryEncoder (1.2.0)
     port: COM7
     port_config:
       baudrate: "115200"

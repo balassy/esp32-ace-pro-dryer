@@ -12,6 +12,7 @@
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_BusIO_1.17.4_7b46ea3f5fdb9ecd\\Adafruit BusIO/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_GFX_Library_1.13.0_ca91a4d6f8dae8af\\Adafruit GFX Library/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_SSD1306_2.5.17_e01cd9e72ae36617\\Adafruit SSD1306/**",
+        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src/**"
       ],
@@ -52,13 +53,14 @@
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_BusIO_1.17.4_7b46ea3f5fdb9ecd\\Adafruit BusIO",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_GFX_Library_1.13.0_ca91a4d6f8dae8af\\Adafruit GFX Library",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_SSD1306_2.5.17_e01cd9e72ae36617\\Adafruit SSD1306",
+        "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32/build_opt.h",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32/file_opts",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\esp32-ace-pro-dryer.ino.cpp",
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\KnobManager.cpp",
         "-o",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\esp32-ace-pro-dryer.ino.cpp.o"
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\KnobManager.cpp.o"
       ],
       "defines": [
         "F_CPU=240000000L",
