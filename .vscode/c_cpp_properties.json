@@ -58,9 +58,9 @@
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32/build_opt.h",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32/file_opts",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\KnobManager.cpp",
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\DisplayManager.cpp",
         "-o",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\KnobManager.cpp.o"
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\DisplayManager.cpp.o"
       ],
       "defines": [
         "F_CPU=240000000L",

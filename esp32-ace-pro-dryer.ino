@@ -22,7 +22,7 @@ void setup() {
   displayManager.setup();
   knobManager.setup(onKnobTurned, onKnobClicked);
 
-  displayManager.printHelloWorld();
+  displayManager.printStatus("Ready.");
 
   Serial.println(F("setup: Initializing ESP32 Ace Pro Dryer DONE."));
 }
@@ -36,10 +36,12 @@ void setupSerial() {
 void onKnobTurned(long value) {
   Serial.print(F("Encoder value: "));
   Serial.println(value);
+  displayManager.printCurrentTemperature(value);
 }
 
 void onKnobClicked(unsigned long duration) {
   Serial.print(F("Encoder button pressed for "));
   Serial.print(duration);
   Serial.println(F(" ms."));
+  displayManager.printTargetTemperature(duration);
 }
