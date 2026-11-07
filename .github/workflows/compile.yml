@@ -1,0 +1,39 @@
+name: Build
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  compile-sketch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Compile sketch for ESP32
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32
+          platforms: |
+            - name: esp32:esp32
+              version: 3.3.12
+              source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          sketch-paths: |
+            - esp32-ace-pro-dryer.ino
+          libraries: |
+            - name: Adafruit BusIO
+              version: 1.17.4
+            - name: Adafruit GFX Library
+              version: 1.13.0
+            - name: Adafruit SSD1306
+              version: 2.5.17
+          enable-warnings-report: true
+
+      - name: Lint sketch
+        uses: arduino/arduino-lint-action@v3
+        with:
+          project-type: sketch
+          verbose: true
+          compliance: strict

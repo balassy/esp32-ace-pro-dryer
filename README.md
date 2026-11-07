@@ -2,7 +2,7 @@
 
 Turn your Anycubic ACE Pro into a standalone filament dryer with an ESP32.
 
-![Arduino](https://img.shields.io/badge/Arduino-00979D?logo=Arduino&logoColor=white)
+![Arduino](https://img.shields.io/badge/Arduino-00979D?logo=Arduino&logoColor=white) [![Build](https://github.com/balassy/esp32-ace-pro-dryer/actions/workflows/compile.yml/badge.svg)](https://github.com/balassy/esp32-ace-pro-dryer/actions/workflows/compile.yml)
 
 ## Hardware 🪛
 
@@ -18,6 +18,7 @@ Turn your Anycubic ACE Pro into a standalone filament dryer with an ESP32.
 Install the [Arduino Maker Workshop](https://marketplace.visualstudio.com/items?itemName=TheLastOutpostWorkshop.arduino-maker-workshop) Visual Studio Code extension.
 
 Install the following libraries:
+- [Adafruit BusIO](https://github.com/adafruit/Adafruit_BusIO)
 - [Adafruit GFX Library](https://github.com/adafruit/Adafruit-GFX-Library)
 - [Adafruit SSD1306](https://github.com/adafruit/Adafruit_SSD1306)
 
