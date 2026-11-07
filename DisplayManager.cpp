@@ -53,9 +53,29 @@ void DisplayManager::printStatus(const char* text) {
   // Center Y mathematically within the bar height.
   int startY = (STATUS_BAR_HEIGHT - DEFAULT_CHAR_HEIGHT) / 2;
 
-  // Print the centered text inside the bar
+  // Print the centered text inside the bar.
   _display.setCursor(startX, startY);
   _display.print(text);
+
+  _display.display();
+}
+
+void DisplayManager::updateSpinner() {
+  const unsigned long now = millis();
+  if (now - _lastSpinnerUpdate < SPINNER_INTERVAL_MS) {
+    return;
+  }
+
+  _lastSpinnerUpdate = now;
+  _spinnerFrame = (_spinnerFrame + 1) % 4;
+
+  constexpr char spinnerFrames[] = {'|', '/', '-', '\\'};
+
+  _display.setFont(nullptr);
+  _display.setTextSize(1);
+  _display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  _display.setCursor(2, (STATUS_BAR_HEIGHT - DEFAULT_CHAR_HEIGHT) / 2);
+  _display.write(spinnerFrames[_spinnerFrame]);
 
   _display.display();
 }
@@ -95,4 +115,3 @@ void DisplayManager::printTargetTemperature(long value) {
 
   _display.display();
 }
-

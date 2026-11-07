@@ -27,7 +27,9 @@ void setup() {
   Serial.println(F("setup: Initializing ESP32 Ace Pro Dryer DONE."));
 }
 
-void loop() {}
+void loop() {
+  displayManager.updateSpinner();
+}
 
 void setupSerial() {
 
