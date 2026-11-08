@@ -7,6 +7,7 @@ class DisplayManager {
   DisplayManager();
 
   bool setup();
+  void clear();
   void printStatus(const char* text);
   void printMenuButtons(const char* primaryText, const char* secondaryText, bool primarySelected);
   void updateSpinner();

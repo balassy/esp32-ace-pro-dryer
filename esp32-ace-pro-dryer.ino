@@ -7,18 +7,25 @@
 // Project classes.
 #include "DisplayManager.h"
 #include "KnobManager.h"
-#include "Menu.h"
+#include "MainPage.h"
+#include "Page.h"
+#include "SettingsPage.h"
 
-void setupSerial();
 void onKnobTurned(long value);
 void onKnobClicked(unsigned long duration);
-void onPrimaryButtonClicked();
-void onSecondaryButtonClicked();
+void onMainSettingsClicked();
+void onSettingsStartClicked();
+void onSettingsBackClicked();
+void activatePage(Page& page);
 
 DisplayManager displayManager;
 KnobManager knobManager;
-Menu menu(displayManager, knobManager, "Start", onPrimaryButtonClicked,
-          "Back", onSecondaryButtonClicked);
+
+MainPage mainPage(displayManager, knobManager, onMainSettingsClicked);
+SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
+Page* activePage = nullptr;
+
+// ------------------------------ Arduino handlers ------------------------------
 
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
@@ -27,34 +34,55 @@ void setup() {
   displayManager.setup();
   knobManager.setup(onKnobTurned, onKnobClicked);
 
+  activatePage(mainPage);
   displayManager.printStatus("Ready.");
-  menu.activate();
 
   Serial.println(F("setup: Initializing ESP32 Ace Pro Dryer DONE."));
 }
 
 void loop() {
   displayManager.updateSpinner();
-  menu.loop();
+  if (activePage != nullptr) {
+    activePage->loop();
+  }
 }
+
+// ------------------------------ Knob event handlers --------------------------
 
 void onKnobTurned(long value) {
   Serial.print(F("Encoder value: "));
   Serial.println(value);
-  menu.onKnobTurned(value);
+  if (activePage != nullptr) {
+    activePage->onKnobTurned(value);
+  }
 }
 
 void onKnobClicked(unsigned long duration) {
   Serial.print(F("Encoder button clicked for "));
   Serial.print(duration);
   Serial.println(F(" ms."));
-  menu.onKnobClicked();
+  if (activePage != nullptr) {
+    activePage->onKnobClicked();
+  }
 }
 
-void onPrimaryButtonClicked() {
-  Serial.println(F("Primary button clicked."));
+// ------------------------------ Page navigation handlers -----------------------
+
+void activatePage(Page& page) {
+  activePage = &page;
+  activePage->activate();
 }
 
-void onSecondaryButtonClicked() {
-  Serial.println(F("Secondary button clicked."));
+void onMainSettingsClicked() {
+  activatePage(settingsPage);
+}
+
+void onSettingsStartClicked() {
+  activatePage(mainPage);
+  displayManager.printStatus("Heating...");
+}
+
+void onSettingsBackClicked() {
+  activatePage(mainPage);
+  displayManager.printStatus("Ready.");
 }

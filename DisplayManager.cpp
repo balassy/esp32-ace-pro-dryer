@@ -36,6 +36,11 @@ bool DisplayManager::setup() {
   return true;
 }
 
+void DisplayManager::clear() {
+  _display.clearDisplay();
+  _display.display();
+}
+
 void DisplayManager::printStatus(const char* text) {
   // Draw the full-width light background bar.
   _display.fillRect(0, 0, SCREEN_WIDTH, STATUS_BAR_HEIGHT, SSD1306_WHITE);
