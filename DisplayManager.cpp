@@ -60,6 +60,46 @@ void DisplayManager::printStatus(const char* text) {
   _display.display();
 }
 
+void DisplayManager::printMenuButtons(const char* primaryText,
+                                      const char* secondaryText,
+                                      bool primarySelected) {
+  constexpr int menuBarY = SCREEN_HEIGHT - MENU_BAR_HEIGHT;
+  constexpr int buttonWidth = SCREEN_WIDTH / 2;
+  const uint16_t primaryBackground = primarySelected ? SSD1306_WHITE : SSD1306_BLACK;
+  const uint16_t primaryForeground = primarySelected ? SSD1306_BLACK : SSD1306_WHITE;
+  const uint16_t secondaryBackground = primarySelected ? SSD1306_BLACK : SSD1306_WHITE;
+  const uint16_t secondaryForeground = primarySelected ? SSD1306_WHITE : SSD1306_BLACK;
+
+  _display.setFont(nullptr);
+  _display.setTextSize(1);
+  _display.fillRect(0, menuBarY, SCREEN_WIDTH, MENU_BAR_HEIGHT, SSD1306_BLACK);
+  _display.drawFastHLine(0, menuBarY, SCREEN_WIDTH, SSD1306_WHITE);
+  _display.fillRect(0, menuBarY + 1, buttonWidth, MENU_BAR_HEIGHT - 1, primaryBackground);
+  _display.fillRect(buttonWidth, menuBarY + 1, SCREEN_WIDTH - buttonWidth, MENU_BAR_HEIGHT - 1, secondaryBackground);
+  _display.drawFastVLine(buttonWidth, menuBarY, MENU_BAR_HEIGHT, SSD1306_WHITE);
+
+  _display.setTextColor(primaryForeground);
+  printCenteredMenuButton(primaryText, 0, buttonWidth, menuBarY);
+  _display.setTextColor(secondaryForeground);
+  if (secondaryText != nullptr) {
+    printCenteredMenuButton(secondaryText, buttonWidth, SCREEN_WIDTH - buttonWidth, menuBarY);
+  }
+
+  _display.display();
+}
+
+void DisplayManager::printCenteredMenuButton(const char* text, int x, int width, int y) {
+  if (text == nullptr) {
+    return;
+  }
+
+  const int textWidth = strlen(text) * DEFAULT_CHAR_WIDTH - 1;
+  const int textX = x + (width - textWidth) / 2;
+  const int textY = y + (MENU_BAR_HEIGHT - DEFAULT_CHAR_HEIGHT) / 2;
+  _display.setCursor(textX, textY);
+  _display.print(text);
+}
+
 void DisplayManager::updateSpinner() {
   const unsigned long now = millis();
   if (now - _lastSpinnerUpdate < SPINNER_INTERVAL_MS) {

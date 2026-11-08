@@ -7,13 +7,18 @@
 // Project classes.
 #include "DisplayManager.h"
 #include "KnobManager.h"
-
-DisplayManager displayManager;
-KnobManager knobManager;
+#include "Menu.h"
 
 void setupSerial();
 void onKnobTurned(long value);
 void onKnobClicked(unsigned long duration);
+void onPrimaryButtonClicked();
+void onSecondaryButtonClicked();
+
+DisplayManager displayManager;
+KnobManager knobManager;
+Menu menu(displayManager, knobManager, "Start", onPrimaryButtonClicked,
+          "Back", onSecondaryButtonClicked);
 
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
@@ -23,27 +28,33 @@ void setup() {
   knobManager.setup(onKnobTurned, onKnobClicked);
 
   displayManager.printStatus("Ready.");
+  menu.activate();
 
   Serial.println(F("setup: Initializing ESP32 Ace Pro Dryer DONE."));
 }
 
 void loop() {
   displayManager.updateSpinner();
-}
-
-void setupSerial() {
-
+  menu.loop();
 }
 
 void onKnobTurned(long value) {
   Serial.print(F("Encoder value: "));
   Serial.println(value);
-  displayManager.printCurrentTemperature(value);
+  menu.onKnobTurned(value);
 }
 
 void onKnobClicked(unsigned long duration) {
-  Serial.print(F("Encoder button pressed for "));
+  Serial.print(F("Encoder button clicked for "));
   Serial.print(duration);
   Serial.println(F(" ms."));
-  displayManager.printTargetTemperature(duration);
+  menu.onKnobClicked();
+}
+
+void onPrimaryButtonClicked() {
+  Serial.println(F("Primary button clicked."));
+}
+
+void onSecondaryButtonClicked() {
+  Serial.println(F("Secondary button clicked."));
 }
