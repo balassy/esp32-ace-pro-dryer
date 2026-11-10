@@ -8,7 +8,7 @@ Turn your Anycubic ACE Pro into a standalone filament dryer with an ESP32.
 
 ### Components 🔩
 
-- ESP32-S3 microcontroller (dual USB)
+- [ESP32-S3-DevKitC-1 microcontroller](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/index.html) (dual USB)
 - SSD1306 0.96" OLED display module with 128×64 pixel resolution (GME12864-12)
 - KY-040 rotary encoder (with resistors)
 

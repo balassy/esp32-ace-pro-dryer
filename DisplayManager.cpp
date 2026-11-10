@@ -20,8 +20,13 @@ bool DisplayManager::setup() {
   const unsigned long startTime = millis();
 
   Serial.println(F("DisplayManager::setup: Initializing display..."));
+  Serial.print(F("DisplayManager::setup: I2C pins - SDA: "));
+  Serial.print(DISPLAY_SDA_PIN);
+  Serial.print(F(", SCL: "));
+  Serial.println(DISPLAY_SCL_PIN);
 
-  while (!_display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+  Wire.begin(DISPLAY_SDA_PIN, DISPLAY_SCL_PIN);
+  while (!_display.begin(SSD1306_SWITCHCAPVCC, DISPLAY_ADDRESS)) {
     if (millis() - startTime >= setupTimeoutMs) {
       Serial.println(F("DisplayManager::setup: Display initialization FAILED (timeout)."));
       return false;

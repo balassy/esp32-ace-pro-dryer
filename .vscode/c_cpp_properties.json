@@ -56,11 +56,11 @@
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src",
-        "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32/build_opt.h",
-        "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32/file_opts",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\DisplayManager.cpp",
+        "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/build_opt.h",
+        "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/file_opts",
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\DisplayManager.cpp",
         "-o",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-WROOM-32\\sketch\\DisplayManager.cpp.o"
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\DisplayManager.cpp.o"
       ],
       "defines": [
         "F_CPU=240000000L",

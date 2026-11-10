@@ -6,9 +6,24 @@ inline constexpr long ENCODER_MAX_VALUE = 80;
 // Hardware settings.
 inline constexpr unsigned long SERIAL_BAUD_RATE = 115200;
 
-// Pin configuration
-// Reference: https://randomnerdtutorials.com/esp32-pinout-reference-gpios/
+// Pin configuration.
+// Board reference: https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.0.html#pin-layout
+// Safe pins reference: https://randomnerdtutorials.com/esp32-pinout-reference-gpios/
+
+// Encoder pins:
 inline constexpr int ENCODER_A_CLK_PIN = 33;
 inline constexpr int ENCODER_B_DT_PIN = 25;
 inline constexpr int ENCODER_SW_PIN = 26;
 inline constexpr int ENCODER_VCC_PIN = 27;
+
+// Display pins:
+inline constexpr uint8_t DISPLAY_ADDRESS = 0x3C; // I2C address for the SSD1306 display
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+inline constexpr int DISPLAY_SDA_PIN = 8;
+inline constexpr int DISPLAY_SCL_PIN = 9;
+#elif defined(CONFIG_IDF_TARGET_ESP32)
+inline constexpr int DISPLAY_SDA_PIN = 21;
+inline constexpr int DISPLAY_SCL_PIN = 22;
+#else
+#error "Unsupported ESP32 target"
+#endif

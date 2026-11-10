@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "port": "COM3",
-  "configuration": "UploadSpeed=921600,CPUFreq=240,FlashFreq=80,FlashMode=qio,FlashSize=4M,PartitionScheme=default,DebugLevel=none,PSRAM=disabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default",
+  "configuration": "UploadSpeed=921600,USBMode=hwcdc,CDCOnBoot=default,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=240,FlashMode=qio,FlashSize=4M,PartitionScheme=default,DebugLevel=none,PSRAM=disabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default",
   "output": "build",
-  "board": "esp32:esp32:esp32",
-  "programmer": "",
+  "board": "esp32:esp32:esp32s3",
+  "programmer": "esptool",
   "useProgrammer": false,
   "optimize_for_debug": false,
   "configurationRequired": true,
-  "compile_profile": "ESP32-WROOM-32",
+  "compile_profile": "ESP32-S3-DevKitC-1",
   "monitorPortSettings": {
     "port": "COM7",
     "baudRate": 115200,
