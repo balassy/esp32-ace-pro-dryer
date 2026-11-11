@@ -37,3 +37,7 @@ inline constexpr int DISPLAY_SCL_PIN = 22;
 #else
 #error "Unsupported ESP32 target for display pin configuration!"
 #endif
+
+// ACE Pro USB pins:
+inline constexpr int USB_D_PLUS_PIN = 20;
+inline constexpr int USB_D_MINUS_PIN = 19;

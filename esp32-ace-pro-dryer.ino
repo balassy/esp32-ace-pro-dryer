@@ -5,6 +5,7 @@
 #include "config.h"
 
 // Project classes.
+#include "AceProManager.h"
 #include "DisplayManager.h"
 #include "KnobManager.h"
 #include "LedManager.h"
@@ -22,6 +23,7 @@ void activatePage(Page& page);
 DisplayManager displayManager;
 KnobManager knobManager;
 LedManager ledManager;
+AceProManager aceProManager;
 
 MainPage mainPage(displayManager, knobManager, onMainSettingsClicked);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
@@ -35,18 +37,19 @@ void setup() {
   while (!Serial && millis() - waitStart < 5000) {
     delay(100);
   }
-  Serial.println(F("setup: Initializing ESP32 Ace Pro Dryer..."));
+  Serial.println(F("setup: Initializing ESP32 ACE Pro Dryer..."));
 
   ledManager.turnOnBlue();
 
   displayManager.setup();
   knobManager.setup(onKnobTurned, onKnobClicked);
+  aceProManager.setup();
 
   activatePage(mainPage);
   displayManager.printStatus("Ready.");
 
   ledManager.turnOnGreen();
-  Serial.println(F("setup: Initializing ESP32 Ace Pro Dryer DONE."));
+  Serial.println(F("setup: Initializing ESP32 ACE Pro Dryer DONE."));
   Serial.flush();
 }
 
