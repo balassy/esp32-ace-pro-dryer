@@ -90,9 +90,11 @@ void onMainSettingsClicked() {
 void onSettingsStartClicked() {
   activatePage(mainPage);
   displayManager.printStatus("Heating...");
+  ledManager.turnOnRed();
 }
 
 void onSettingsBackClicked() {
   activatePage(mainPage);
   displayManager.printStatus("Ready.");
+  ledManager.turnOnGreen();
 }

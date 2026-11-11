@@ -47,6 +47,8 @@ void Menu::loop() {
 
   ClickCallback callback = _primarySelected ? _primaryCallback : _secondaryCallback;
   if (callback != nullptr) {
+    Serial.print(F("Menu: Button clicked: "));
+    Serial.println(_primarySelected ? _primaryText : _secondaryText);
     callback();
   }
 }
