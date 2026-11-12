@@ -211,7 +211,7 @@ ResponseReadResult readResponseFrame(uint8_t* payload, size_t payloadCapacity, s
   return ResponseReadResult::TIMEOUT;
 }
 
-bool requestAceProInfo() {
+bool requestAceProInfo(Print& logger) {
   static constexpr char REQUEST_PAYLOAD[] = "{\"id\":1,\"method\":\"get_info\"}";
   constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
   uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
@@ -231,9 +231,9 @@ bool requestAceProInfo() {
     aceProUsbSerial.read();
   }
 
-  Serial.println(F("AceProManager::setup: Sending get_info connectivity probe..."));
+  logger.println(F("AceProManager::setup: Sending get_info connectivity probe..."));
   if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
-    Serial.println(F("AceProManager::setup: ERROR: Failed to send the get_info request."));
+    logger.println(F("AceProManager::setup: ERROR: Failed to send the get_info request."));
     return false;
   }
   aceProUsbSerial.flush();
@@ -243,11 +243,11 @@ bool requestAceProInfo() {
   const ResponseReadResult readResult =
       readResponseFrame(responsePayload, MAX_RESPONSE_PAYLOAD_SIZE, responseLength);
   if (readResult == ResponseReadResult::TIMEOUT) {
-    Serial.println(F("AceProManager::setup: ERROR: Timed out waiting for an ACE Pro response."));
+    logger.println(F("AceProManager::setup: ERROR: Timed out waiting for an ACE Pro response."));
     return false;
   }
   if (readResult == ResponseReadResult::INVALID_FRAME) {
-    Serial.println(F("AceProManager::setup: ERROR: Received an invalid ACE Pro response frame."));
+    logger.println(F("AceProManager::setup: ERROR: Received an invalid ACE Pro response frame."));
     return false;
   }
 
@@ -256,11 +256,11 @@ bool requestAceProInfo() {
   long responseCode = -1;
   const char* responseJson = reinterpret_cast<const char*>(responsePayload);
   if (!getJsonIntegerField(responseJson, "id", responseId) || responseId != GET_INFO_REQUEST_ID) {
-    Serial.println(F("AceProManager::setup: ERROR: Response ID did not match the get_info request."));
+    logger.println(F("AceProManager::setup: ERROR: Response ID did not match the get_info request."));
     return false;
   }
   if (!getJsonIntegerField(responseJson, "code", responseCode) || responseCode != 0) {
-    Serial.println(F("AceProManager::setup: ERROR: ACE Pro returned an unsuccessful get_info response."));
+    logger.println(F("AceProManager::setup: ERROR: ACE Pro returned an unsuccessful get_info response."));
     return false;
   }
 
@@ -270,37 +270,35 @@ bool requestAceProInfo() {
   if (!getJsonStringField(responseJson, "model", model, sizeof(model)) ||
       !getJsonStringField(responseJson, "firmware", firmware, sizeof(firmware)) ||
       !getJsonStringField(responseJson, "boot_firmware", bootFirmware, sizeof(bootFirmware))) {
-    Serial.println(F("AceProManager::setup: ERROR: get_info response is missing device version information."));
+    logger.println(F("AceProManager::setup: ERROR: get_info response is missing device version information."));
     return false;
   }
 
-  Serial.print(F("AceProManager::setup: Device model: "));
-  Serial.println(model);
-  Serial.print(F("AceProManager::setup: Firmware: "));
-  Serial.println(firmware);
-  Serial.print(F("AceProManager::setup: Boot firmware: "));
-  Serial.println(bootFirmware);
-  Serial.println(F("AceProManager::setup: ACE Pro USB CDC connection verified (get_info succeeded)."));
+  logger.print(F("AceProManager::setup: Device model: "));
+  logger.println(model);
+  logger.print(F("AceProManager::setup: Firmware: "));
+  logger.println(firmware);
+  logger.print(F("AceProManager::setup: Boot firmware: "));
+  logger.println(bootFirmware);
+  logger.println(F("AceProManager::setup: ACE Pro USB CDC connection verified (get_info succeeded)."));
   return true;
 }
 }  // namespace
 
-void AceProManager::setup() {
-  Serial.println(F("AceProManager::setup: Initializing ACE Pro connection..."));
-  Serial.print(F("AceProManager::setup: USB pins - D+: "));
-  Serial.print(USB_D_PLUS_PIN);
-  Serial.print(F(", D-: "));
-  Serial.println(USB_D_MINUS_PIN);
-  Serial.flush();
+AceProManager::AceProManager(Print& logger) : _logger(logger) {}
 
+void AceProManager::setup() {
+  _logger.println(F("AceProManager::setup: Initializing ACE Pro connection..."));
+  _logger.print(F("AceProManager::setup: USB pins - D+: "));
+  _logger.print(USB_D_PLUS_PIN);
+  _logger.print(F(", D-: "));
+  _logger.println(USB_D_MINUS_PIN);
   if (!USBHost.begin()) {
-    Serial.println(F("AceProManager::setup: ERROR: Failed to start the USB host."));
-    Serial.flush();
+    _logger.println(F("AceProManager::setup: ERROR: Failed to start the USB host."));
     return;
   }
 
-  Serial.println(F("AceProManager::setup: USB host started."));
-  Serial.flush();
+  _logger.println(F("AceProManager::setup: USB host started."));
 
   _usbHostStarted = true;
   aceProUsbSerial.begin(115200);
@@ -311,17 +309,17 @@ void AceProManager::setup() {
     delay(10);
   }
   if (!aceProUsbSerial) {
-    Serial.println(F("AceProManager::setup: ERROR: No USB CDC device detected; check the ACE Pro and cable."));
+    _logger.println(F("AceProManager::setup: ERROR: No USB CDC device detected; check the ACE Pro and cable."));
     return;
   }
 
-  Serial.println(F("AceProManager::setup: USB CDC device enumerated."));
-  if (!requestAceProInfo()) {
-    Serial.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
+  _logger.println(F("AceProManager::setup: USB CDC device enumerated."));
+  if (!requestAceProInfo(_logger)) {
+    _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
     return;
   }
 
-  Serial.println(F("AceProManager::setup: Initializing ACE Pro connection DONE."));
+  _logger.println(F("AceProManager::setup: Initializing ACE Pro connection DONE."));
 }
 
 void AceProManager::update() {
@@ -331,6 +329,6 @@ void AceProManager::update() {
 }
 
 AceProManager::Status AceProManager::getStatus() const {
-  Serial.println(F("AceProManager::getStatus: Dryer status polling is not implemented; returning default status."));
+  _logger.println(F("AceProManager::getStatus: Dryer status polling is not implemented; returning default status."));
   return _status;
 }

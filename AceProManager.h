@@ -4,6 +4,8 @@
 
 class AceProManager {
  public:
+  explicit AceProManager(Print& logger);
+
   struct Status {
     int currentTemperatureCelsius = 0;
     bool isDrying = false;
@@ -18,6 +20,7 @@ class AceProManager {
   Status getStatus() const;
 
  private:
+  Print& _logger;
   Status _status;
   bool _usbHostStarted = false;
 };

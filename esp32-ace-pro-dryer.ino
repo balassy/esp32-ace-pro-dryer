@@ -24,8 +24,8 @@ void activatePage(Page& page);
 DisplayManager displayManager;
 KnobManager knobManager;
 LedManager ledManager;
-AceProManager aceProManager;
 RemoteLogger remoteLogger;
+AceProManager aceProManager(remoteLogger);
 
 MainPage mainPage(displayManager, knobManager, onMainSettingsClicked);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
@@ -59,8 +59,8 @@ void setup() {
 }
 
 void loop() {
-  //aceProManager.update();
   remoteLogger.update();
+  aceProManager.update();
   displayManager.updateSpinner();
   if (activePage != nullptr) {
     activePage->loop();
