@@ -43,7 +43,6 @@ void setup() {
 
   displayManager.setup();
   knobManager.setup(onKnobTurned, onKnobClicked);
-  aceProManager.setup();
 
   activatePage(mainPage);
   displayManager.printStatus("Ready.");
@@ -54,6 +53,7 @@ void setup() {
 }
 
 void loop() {
+  //aceProManager.update();
   displayManager.updateSpinner();
   if (activePage != nullptr) {
     activePage->loop();
@@ -94,6 +94,7 @@ void onSettingsStartClicked() {
   activatePage(mainPage);
   displayManager.printStatus("Heating...");
   ledManager.turnOnRed();
+    aceProManager.setup();
 }
 
 void onSettingsBackClicked() {

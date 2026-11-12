@@ -14,7 +14,9 @@
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\Adafruit_SSD1306_2.5.17_e01cd9e72ae36617\\Adafruit SSD1306/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src/**",
-        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src/**"
+        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src/**",
+        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\USB\\src/**",
+        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\FS\\src/**"
       ],
       "forcedInclude": [
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\cores\\esp32\\Arduino.h"
@@ -36,7 +38,7 @@
         "-DARDUINO_VARIANT=\"esp32s3\"",
         "-DARDUINO_PARTITION_default",
         "-DARDUINO_HOST_OS=\"windows\"",
-        "-DARDUINO_FQBN=\"esp32:esp32:esp32s3:UploadSpeed=921600,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default,CDCOnBoot=cdc\"",
+        "-DARDUINO_FQBN=\"esp32:esp32:esp32s3:UploadSpeed=921600,USBMode=hwcdc,CDCOnBoot=cdc,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default\"",
         "-DESP32=ESP32",
         "-DCORE_DEBUG_LEVEL=0",
         "-DARDUINO_RUNNING_CORE=1",
@@ -60,11 +62,13 @@
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src",
+        "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\USB\\src",
+        "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\FS\\src",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/build_opt.h",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/file_opts",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\SettingsPage.cpp",
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\AceProManager.cpp",
         "-o",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\SettingsPage.cpp.o"
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\AceProManager.cpp.o"
       ],
       "defines": [
         "F_CPU=240000000L",
@@ -75,7 +79,7 @@
         "ARDUINO_VARIANT=esp32s3",
         "ARDUINO_PARTITION_default",
         "ARDUINO_HOST_OS=windows",
-        "ARDUINO_FQBN=esp32:esp32:esp32s3:UploadSpeed=921600,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default,CDCOnBoot=cdc",
+        "ARDUINO_FQBN=esp32:esp32:esp32s3:UploadSpeed=921600,USBMode=hwcdc,CDCOnBoot=cdc,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default",
         "ESP32=ESP32",
         "CORE_DEBUG_LEVEL=0",
         "ARDUINO_RUNNING_CORE=1",
@@ -88,12 +92,12 @@
         "ARDUINO_BOARD=\\ESP32S3_DEV\\",
         "ARDUINO_VARIANT=\\esp32s3\\",
         "ARDUINO_HOST_OS=\\windows\\",
-        "ARDUINO_FQBN=\\esp32:esp32:esp32s3:UploadSpeed=921600,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default,CDCOnBoot=cdc\\",
+        "ARDUINO_FQBN=\\esp32:esp32:esp32s3:UploadSpeed=921600,USBMode=hwcdc,CDCOnBoot=cdc,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default\\",
         "ARDUINO_CORE_BUILD",
         "ARDUINO_BOARD=\"ESP32S3_DEV",
         "ARDUINO_VARIANT=\"esp32s3",
         "ARDUINO_HOST_OS=\"windows",
-        "ARDUINO_FQBN=\"esp32:esp32:esp32s3:UploadSpeed=921600,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default,CDCOnBoot=cdc",
+        "ARDUINO_FQBN=\"esp32:esp32:esp32s3:UploadSpeed=921600,USBMode=hwcdc,CDCOnBoot=cdc,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=default,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default",
         "USBCON"
       ],
       "cStandard": "c17",

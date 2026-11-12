@@ -14,8 +14,10 @@ class AceProManager {
   };
 
   void setup();
+  void update();
   Status getStatus() const;
 
  private:
   Status _status;
+  bool _usbHostStarted = false;
 };
