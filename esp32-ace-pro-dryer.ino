@@ -11,6 +11,7 @@
 #include "LedManager.h"
 #include "MainPage.h"
 #include "Page.h"
+#include "RemoteLogger.h"
 #include "SettingsPage.h"
 
 void onKnobTurned(long value);
@@ -24,6 +25,7 @@ DisplayManager displayManager;
 KnobManager knobManager;
 LedManager ledManager;
 AceProManager aceProManager;
+RemoteLogger remoteLogger;
 
 MainPage mainPage(displayManager, knobManager, onMainSettingsClicked);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
@@ -41,6 +43,10 @@ void setup() {
 
   ledManager.turnOnBlue();
 
+  if (!remoteLogger.setup()) {
+    Serial.println(F("RemoteLogger::setup: failed; check the Wi-Fi SSID in config.h."));
+  }
+
   displayManager.setup();
   knobManager.setup(onKnobTurned, onKnobClicked);
 
@@ -54,6 +60,7 @@ void setup() {
 
 void loop() {
   //aceProManager.update();
+  remoteLogger.update();
   displayManager.updateSpinner();
   if (activePage != nullptr) {
     activePage->loop();
@@ -94,6 +101,7 @@ void onSettingsStartClicked() {
   activatePage(mainPage);
   displayManager.printStatus("Heating...");
   ledManager.turnOnRed();
+  remoteLogger.println(F("Starting dryer..."));
     aceProManager.setup();
 }
 

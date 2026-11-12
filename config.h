@@ -1,5 +1,13 @@
 #pragma once
 
+// Local Wi-Fi credentials used by the remote log server.
+#if __has_include("config.secrets.h")
+#include "config.secrets.h"
+#else
+inline constexpr char WIFI_SSID[] = "";
+inline constexpr char WIFI_PASSWORD[] = "";
+#endif
+
 inline constexpr long ENCODER_MIN_VALUE = 30;
 inline constexpr long ENCODER_MAX_VALUE = 80;
 

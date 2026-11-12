@@ -26,6 +26,10 @@ Install the following libraries:
 
 The exact versions of these libraries used to create this code are visible in the [sketch.yaml](./sketch.yaml) file.
 
+### Remote logging
+
+The device connects to the configured local Wi-Fi network and serves live log output to up to four TCP clients on port 23. Put `WIFI_SSID` and `WIFI_PASSWORD` in the ignored `config.secrets.h` file; `config.h` uses empty placeholder values when that file is absent. Find the device's assigned IP address in your router's DHCP client list or in the Serial log, then connect to that IP and port 23 with a TCP client such as PuTTY in Raw mode.
+
 ## About the author
 
 This project is created and maintained by [György Balássy](https://www.linkedin.com/in/balassy).

@@ -15,6 +15,8 @@
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src/**",
+        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\WiFi\\src/**",
+        "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Network\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\USB\\src/**",
         "C:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\FS\\src/**"
       ],
@@ -62,13 +64,15 @@
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\ESP32RotaryEncoder_1.2.0_a33605132ce29803\\ESP32RotaryEncoder\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Wire\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\SPI\\src",
+        "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\WiFi\\src",
+        "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\Network\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\USB\\src",
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\FS\\src",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/build_opt.h",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/file_opts",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\AceProManager.cpp",
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\RemoteLogger.cpp",
         "-o",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\AceProManager.cpp.o"
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\RemoteLogger.cpp.o"
       ],
       "defines": [
         "F_CPU=240000000L",

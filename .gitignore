@@ -1,2 +1,3 @@
 # Arduino Maker Workshop VSCode Extension
 build
+config.secrets.h
