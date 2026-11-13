@@ -3,28 +3,28 @@
 #include <cstring>
 
 #include "config.h"
+#include "LogRouter.h"
 
 bool RemoteLogger::setup() {
-  Serial.print(F("RemoteLogger::setup: Connecting to Wi-Fi SSID \""));
-  Serial.print(WIFI_SSID);
-  Serial.println(F("\"..."));
+  logRouter.print(F("RemoteLogger::setup: Connecting to Wi-Fi SSID \""));
+  logRouter.print(WIFI_SSID);
+  logRouter.println(F("\"..."));
 
   if (_started) {
     return true;
   }
   if (strlen(WIFI_SSID) == 0) {
-    Serial.println(F("RemoteLogger::setup: Failed to connect because Wi-Fi SSID is empty. Check config.h!"));
+    logRouter.println(F("RemoteLogger::setup: Failed to connect because Wi-Fi SSID is empty. Check config.h!"));
     return false;
   }
   if (!WiFi.mode(WIFI_STA)) {
-    Serial.println(F("RemoteLogger::setup: Failed to set Wi-Fi mode."));
+    logRouter.println(F("RemoteLogger::setup: Failed to set Wi-Fi mode."));
     return false;
   }
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   
-  Serial.print(F("RemoteLogger::setup: Connecting to Wi-Fi DONE."));
-  Serial.flush();
+  logRouter.println(F("RemoteLogger::setup: Wi-Fi connection is in progress."));
   
   _started = true;
   return true;
@@ -51,9 +51,9 @@ void RemoteLogger::update() {
     _server.setNoDelay(true);
     _serverStarted = true;
 
-    Serial.print(F("RemoteLogger::update: Listening at "));
-    Serial.print(WiFi.localIP());
-    Serial.println(F(":23"));
+    logRouter.print(F("RemoteLogger::update: Listening at "));
+    logRouter.print(WiFi.localIP());
+    logRouter.println(F(":23"));
   }
 
   for (uint8_t accepted = 0; accepted < MAX_CLIENTS && _server.hasClient(); ++accepted) {
@@ -71,10 +71,9 @@ void RemoteLogger::update() {
       continue;
     }
 
-    Serial.print(F("RemoteLogger::update: Client connected from "));
-    Serial.println(incoming.remoteIP());
-
     _clients[slot] = incoming;
+    logRouter.print(F("RemoteLogger::update: Client connected from "));
+    logRouter.println(incoming.remoteIP());
     _clients[slot].println(F("Welcome! Remote log stream connected."));
   }
 

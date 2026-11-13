@@ -1,4 +1,5 @@
 #include "Menu.h"
+#include "LogRouter.h"
 
 Menu::Menu(DisplayManager& display, KnobManager& knob, const char* primaryText,
            ClickCallback primaryCallback, const char* secondaryText,
@@ -47,8 +48,8 @@ void Menu::loop() {
 
   ClickCallback callback = _primarySelected ? _primaryCallback : _secondaryCallback;
   if (callback != nullptr) {
-    Serial.print(F("Menu: Button clicked: "));
-    Serial.println(_primarySelected ? _primaryText : _secondaryText);
+    logRouter.print(F("Menu: Button clicked: "));
+    logRouter.println(_primarySelected ? _primaryText : _secondaryText);
     callback();
   }
 }

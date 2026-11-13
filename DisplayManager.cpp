@@ -10,6 +10,7 @@
 #include <Fonts/FreeSerifItalic12pt7b.h>
 
 #include "config.h"
+#include "LogRouter.h"
 
 DisplayManager::DisplayManager()
     : _display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {}
@@ -19,16 +20,16 @@ bool DisplayManager::setup() {
   constexpr unsigned long retryIntervalMs = 100;
   const unsigned long startTime = millis();
 
-  Serial.println(F("DisplayManager::setup: Initializing display..."));
-  Serial.print(F("DisplayManager::setup: I2C pins - SDA: "));
-  Serial.print(DISPLAY_SDA_PIN);
-  Serial.print(F(", SCL: "));
-  Serial.println(DISPLAY_SCL_PIN);
+  logRouter.println(F("DisplayManager::setup: Initializing display..."));
+  logRouter.print(F("DisplayManager::setup: I2C pins - SDA: "));
+  logRouter.print(DISPLAY_SDA_PIN);
+  logRouter.print(F(", SCL: "));
+  logRouter.println(DISPLAY_SCL_PIN);
 
   Wire.begin(DISPLAY_SDA_PIN, DISPLAY_SCL_PIN);
   while (!_display.begin(SSD1306_SWITCHCAPVCC, DISPLAY_ADDRESS)) {
     if (millis() - startTime >= setupTimeoutMs) {
-      Serial.println(F("DisplayManager::setup: Display initialization FAILED (timeout)."));
+      logRouter.println(F("DisplayManager::setup: Display initialization FAILED (timeout)."));
       return false;
     }
     delay(retryIntervalMs);
@@ -37,7 +38,7 @@ bool DisplayManager::setup() {
   // Wipe the Adafruit logo out of the buffer completely.
   _display.clearDisplay(); 
 
-  Serial.println(F("DisplayManager::setup: Initializing display DONE."));
+  logRouter.println(F("DisplayManager::setup: Initializing display DONE."));
   return true;
 }
 

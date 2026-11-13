@@ -293,6 +293,7 @@ void AceProManager::setup() {
   _logger.print(USB_D_PLUS_PIN);
   _logger.print(F(", D-: "));
   _logger.println(USB_D_MINUS_PIN);
+
   if (!USBHost.begin()) {
     _logger.println(F("AceProManager::setup: ERROR: Failed to start the USB host."));
     return;
@@ -301,7 +302,7 @@ void AceProManager::setup() {
   _logger.println(F("AceProManager::setup: USB host started."));
 
   _usbHostStarted = true;
-  aceProUsbSerial.begin(115200);
+  aceProUsbSerial.begin(230400);
 
   const unsigned long startTime = millis();
   while (!aceProUsbSerial && millis() - startTime < USB_CONNECTION_TIMEOUT_MS) {
