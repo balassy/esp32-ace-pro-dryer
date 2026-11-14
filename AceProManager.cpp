@@ -15,6 +15,7 @@ namespace {
 USBHostSerialClass aceProUsbSerial;
 
 constexpr unsigned long USB_CONNECTION_TIMEOUT_MS = 5000;
+constexpr unsigned long USB_DIAGNOSTIC_INTERVAL_MS = 1000;
 constexpr unsigned long USB_RESPONSE_TIMEOUT_MS = 3000;
 constexpr size_t MAX_RESPONSE_PAYLOAD_SIZE = 512;
 constexpr uint8_t GET_INFO_REQUEST_ID = 1;
@@ -300,21 +301,53 @@ void AceProManager::setup() {
   }
 
   _logger.println(F("AceProManager::setup: USB host started."));
+  _logger.print(F("AceProManager::setup: USB host background worker: "));
+  _logger.println(USBHost.tuhBackgroundActive() ? F("active.") : F("inactive."));
 
   _usbHostStarted = true;
-  aceProUsbSerial.begin(230400);
+  aceProUsbSerial.begin(115200);
+  _logger.println(F("AceProManager::setup: Waiting for a USB CDC interface at 115200 baud."));
 
   const unsigned long startTime = millis();
-  while (!aceProUsbSerial && millis() - startTime < USB_CONNECTION_TIMEOUT_MS) {
+  unsigned long lastDiagnosticTime = startTime;
+  while (!aceProUsbSerial.mounted() && millis() - startTime < USB_CONNECTION_TIMEOUT_MS) {
     USBHost.task();
+    const unsigned long now = millis();
+    if (now - lastDiagnosticTime >= USB_DIAGNOSTIC_INTERVAL_MS) {
+      lastDiagnosticTime = now;
+      _logger.print(F("AceProManager::setup: Still waiting for USB CDC; elapsed "));
+      _logger.print(now - startTime);
+      _logger.print(F(" ms; USB host root port active: "));
+      _logger.println(tuh_rhport_is_active(0) ? F("yes.") : F("no."));
+    }
     delay(10);
   }
-  if (!aceProUsbSerial) {
-    _logger.println(F("AceProManager::setup: ERROR: No USB CDC device detected; check the ACE Pro and cable."));
+  if (!aceProUsbSerial.mounted()) {
+    _logger.println(F("AceProManager::setup: ERROR: No USB CDC interface mounted within the timeout."));
+    _logger.println(F("AceProManager::setup: This USBHostSerialClass does not report devices without a CDC interface."));
+    _logger.println(F("AceProManager::setup: Check that the ACE Pro exposes CDC-ACM, plus host VBUS, ground, D+, and D-."));
     return;
   }
 
   _logger.println(F("AceProManager::setup: USB CDC device enumerated."));
+  _logger.print(F("AceProManager::setup: USB device address: "));
+  _logger.println(aceProUsbSerial.devAddr());
+  _logger.print(F("AceProManager::setup: CDC interface number: "));
+  _logger.println(aceProUsbSerial.interfaceNumber());
+  _logger.print(F("AceProManager::setup: CDC interface index: "));
+  _logger.println(aceProUsbSerial.cdcIndex());
+
+  uint16_t vendorId = 0;
+  uint16_t productId = 0;
+  if (tuh_vid_pid_get(aceProUsbSerial.devAddr(), &vendorId, &productId)) {
+    char deviceId[32];
+    snprintf(deviceId, sizeof(deviceId), "VID=0x%04X PID=0x%04X", vendorId, productId);
+    _logger.print(F("AceProManager::setup: USB "));
+    _logger.println(deviceId);
+  } else {
+    _logger.println(F("AceProManager::setup: USB VID/PID is not available from TinyUSB."));
+  }
+
   if (!requestAceProInfo(_logger)) {
     _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
     return;

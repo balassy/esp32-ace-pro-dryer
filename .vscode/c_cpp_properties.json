@@ -70,9 +70,9 @@
         "-IC:\\Users\\balassy\\AppData\\Local\\Arduino15\\internal\\esp32_esp32_3.3.12_feadd113249efafd\\libraries\\FS\\src",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/build_opt.h",
         "@W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1/file_opts",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\Page.cpp",
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\AceProManager.cpp",
         "-o",
-        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\Page.cpp.o"
+        "W:\\Projektek - My\\esp32-ace-pro-dryer\\build\\build_ESP32-S3-DevKitC-1\\sketch\\AceProManager.cpp.o"
       ],
       "defines": [
         "F_CPU=240000000L",
