@@ -7,6 +7,8 @@ class AceProManager {
   explicit AceProManager(Print& logger);
 
   struct Status {
+    bool valid = false;  // Required status fields were parsed successfully.
+    bool responseComplete = false;  // The full frame and CRC were validated.
     int currentTemperatureCelsius = 0;
     bool isDrying = false;
     int targetTemperatureCelsius = 0;
@@ -16,8 +18,7 @@ class AceProManager {
   };
 
   void setup();
-  void update();
-  Status getStatus() const;
+  Status getStatus();
 
  private:
   Print& _logger;

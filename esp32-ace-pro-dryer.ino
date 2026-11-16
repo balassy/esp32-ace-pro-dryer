@@ -62,7 +62,6 @@ void setup() {
 
 void loop() {
   remoteLogger.update();
-  aceProManager.update();
   displayManager.updateSpinner();
   if (activePage != nullptr) {
     activePage->loop();
