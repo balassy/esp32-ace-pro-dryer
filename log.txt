@@ -1,0 +1,98 @@
+Starting dryer...
+AceProManager::setup: Initializing ACE Pro connection...
+AceProManager::setup: USB pins - D+: 20, D-: 19
+AceProManager::setup: USB host started.
+AceProManager::setup: USB host background worker: active.
+AceProManager::setup: Waiting for a USB CDC interface at 115200 baud.
+Encoder button clicked for 796 ms.
+AceProManager::setup: Still waiting for USB CDC; elapsed 1000 ms; USB host root port active: yes.
+AceProManager::setup: USB CDC device enumerated.
+AceProManager::setup: USB device address: 1
+AceProManager::setup: CDC interface number: 0
+AceProManager::setup: CDC interface index: 0
+AceProManager::setup: USB VID=0x28E9 PID=0x018A
+AceProManager::setup: Sending get_info connectivity probe...
+AceProManager::setup: Device model: Anycubic Color Engine Pro
+AceProManager::setup: Firmware: V1.3.863
+AceProManager::setup: Boot firmware: V1.0.1
+AceProManager::setup: ACE Pro USB CDC connection verified (get_info succeeded).
+AceProManager::setup: Initializing ACE Pro connection DONE.
+AceProManager::getStatus: Sending get_status request...
+AceProManager::getStatus: Progress at 267 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 517 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 768 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 1018 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 1268 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 1519 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 1769 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 2019 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 2270 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 2521 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 2771 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 3021 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 3272 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted no.
+AceProManager::getStatus: Progress at 3523 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 3774 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 4024 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 4274 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 4525 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 4776 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 5027 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 5277 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 5527 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 5777 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 6027 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 6278 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 6529 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 6779 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted no.
+AceProManager::getStatus: Progress at 7030 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 7280 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 7530 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 7781 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 8031 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 8282 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 8533 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 8783 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 9033 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 9283 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 9534 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: Progress at 9785 ms: frame bytes read 576, USB reader bytes received 576, CDC RX callbacks 18, CDC available 0, mounted yes.
+AceProManager::getStatus: ERROR: No complete response received (Timeout).
+AceProManager::getStatus: Received partial JSON payload (572 byte(s)):
+{"id":2,"result":{"status":"ready","dryer_status":{"status":"stop","target_temp":0,"duration":0,"remain_time":0},"temp":23,"enable_rfid":1,"fan_speed":7000,"feed_assist_count":0,"cont_assist_time":0.0,"slots":[{"index":0,"status":"empty","sku":"AHHSBK-106","type":"PLA High Speed","icon_type":0,"color":[33,39,33],"colors":[[33,39,33,255]],"rfid":0},{"index":1,"status":"empty","sku":"AHHSVO-106","type":"PLA High Speed","icon_type":0,"color":[255,115,56],"colors":[[255,115,56,255]],"rfid":0},{"index":2,"status":"empty","sku":"","type":"","icon_type":0,"color":[0,0,0],"
+AceProManager::getStatus: Parsed status from an incomplete, unverified response.
+AceProManager::getStatus: USB reader received 576 byte(s), dropped 0, max CDC available 64, CDC currently available 0, ms since last reader data 10033
+AceProManager::getStatus: CDC mounted yes, observed mounts 3, observed unmounts 2, CDC mounts during get_status 2, CDC unmounts during get_status 2, CDC RX callbacks during get_status 18, buffered bytes at last CDC RX callback 0, last CDC transition mount, ms since last CDC state change 3221
+AceProManager::getStatus: CDC RX callback at 28 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 29 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 29 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 30 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 31 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 32 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 33 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 34 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 35 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 36 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 37 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 38 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 39 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 40 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 41 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 42 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 43 ms; 64 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC RX callback at 44 ms; 0 byte(s) in CDC FIFO at callback.
+AceProManager::getStatus: CDC mount callback at 10479 ms from request start.
+AceProManager::getStatus: CDC unmount callback at 10231 ms from request start.
+AceProManager::getStatus: CDC unmounted at 3091 ms from request start; 576 response byte(s) received at transition.
+AceProManager::getStatus: CDC mounted at 3340 ms from request start; 576 response byte(s) received at transition.
+AceProManager::getStatus: CDC unmounted at 6661 ms from request start; 576 response byte(s) received at transition.
+AceProManager::getStatus: CDC mounted at 6910 ms from request start; 576 response byte(s) received at transition.
+AceProManager::getStatus: CDC unmounted at 10231 ms from request start; 576 response byte(s) received at transition.
+AceProManager::getStatus: CDC mounted at 10481 ms from request start; 576 response byte(s) received at transition.
+AceProManager::getStatus: WARNING: Status values are from an incomplete, unverified response.
+AceProManager::getStatus: Current temperature: 23 C
+AceProManager::getStatus: Dryer status: stop
+AceProManager::getStatus: Target temperature: 0 C
+AceProManager::getStatus: Duration: 0 minutes
+AceProManager::getStatus: Remaining time: 0 minutes
+AceProManager::getStatus: Fan speed: 7000 RPM

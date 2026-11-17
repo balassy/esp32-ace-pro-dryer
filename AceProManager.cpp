@@ -22,8 +22,10 @@ USBHostSerialClass aceProUsbSerial;
 constexpr unsigned long USB_CONNECTION_TIMEOUT_MS = 5000;
 constexpr unsigned long USB_DIAGNOSTIC_INTERVAL_MS = 1000;
 constexpr unsigned long USB_RESPONSE_TIMEOUT_MS = 10000;
+constexpr unsigned long USB_STATUS_PROGRESS_INTERVAL_MS = 250;
 constexpr size_t MAX_RESPONSE_PAYLOAD_SIZE = 1024;
 constexpr size_t USB_RX_STREAM_BUFFER_SIZE = 4096;
+constexpr size_t USB_CDC_TRANSITION_HISTORY_SIZE = 8;
 constexpr uint8_t GET_INFO_REQUEST_ID = 1;
 
 StreamBufferHandle_t usbRxStreamBuffer = nullptr;
@@ -33,6 +35,33 @@ volatile uint32_t usbRxTaskBytes = 0;
 volatile uint32_t usbRxTaskDroppedBytes = 0;
 volatile uint32_t usbRxLastByteTime = 0;
 volatile uint32_t usbRxMaxAvailable = 0;
+volatile uint32_t usbCdcMountCount = 0;
+volatile uint32_t usbCdcUnmountCount = 0;
+volatile uint32_t usbCdcLastStateChangeTime = 0;
+volatile bool usbCdcLastStateChangeWasMount = false;
+volatile uint32_t usbCdcTransitionSequence = 0;
+volatile uint32_t usbCdcTransitionTimes[USB_CDC_TRANSITION_HISTORY_SIZE] = {};
+volatile uint32_t usbCdcTransitionBytes[USB_CDC_TRANSITION_HISTORY_SIZE] = {};
+volatile bool usbCdcTransitionMounts[USB_CDC_TRANSITION_HISTORY_SIZE] = {};
+bool usbCdcMountStateInitialized = false;
+bool usbCdcLastMounted = false;
+uint32_t usbCdcMountCountAtStatusRequest = 0;
+uint32_t usbCdcUnmountCountAtStatusRequest = 0;
+uint32_t usbCdcRxCallbackCountAtStatusRequest = 0;
+uint32_t usbCdcRxEventSequenceAtStatusRequest = 0;
+uint32_t usbCdcMountEventTimeAtStatusRequest = 0;
+uint32_t usbCdcUnmountEventTimeAtStatusRequest = 0;
+uint32_t usbCdcTransitionSequenceAtStatusRequest = 0;
+uint32_t usbStatusRequestStartTime = 0;
+
+void recordUsbCdcTransition(bool mounted) {
+  const uint32_t sequence = usbCdcTransitionSequence;
+  const size_t index = sequence % USB_CDC_TRANSITION_HISTORY_SIZE;
+  usbCdcTransitionTimes[index] = millis();
+  usbCdcTransitionBytes[index] = usbRxTaskBytes;
+  usbCdcTransitionMounts[index] = mounted;
+  usbCdcTransitionSequence = sequence + 1;
+}
 
 void usbRxTask(void*) {
   uint8_t inputBuffer[128];
@@ -41,7 +70,28 @@ void usbRxTask(void*) {
       USBHost.task();
     }
 
-    if (!aceProUsbSerial.mounted()) {
+    const bool mounted = aceProUsbSerial.mounted();
+    if (!usbCdcMountStateInitialized) {
+      usbCdcMountStateInitialized = true;
+      usbCdcLastMounted = mounted;
+      if (mounted) {
+        ++usbCdcMountCount;
+        usbCdcLastStateChangeTime = millis();
+        usbCdcLastStateChangeWasMount = true;
+      }
+    } else if (mounted != usbCdcLastMounted) {
+      usbCdcLastMounted = mounted;
+      if (mounted) {
+        ++usbCdcMountCount;
+      } else {
+        ++usbCdcUnmountCount;
+      }
+      usbCdcLastStateChangeWasMount = mounted;
+      usbCdcLastStateChangeTime = millis();
+      recordUsbCdcTransition(mounted);
+    }
+
+    if (!mounted) {
       vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
@@ -279,11 +329,13 @@ enum class ResponseReadResult {
 ResponseReadResult readResponseFrameDynamic(uint8_t* frameBuffer,
                                             size_t bufferCapacity,
                                             size_t& totalBytesRead,
-                                            size_t& payloadLength) {
+                                            size_t& payloadLength,
+                                            Print& logger) {
   totalBytesRead = 0;
   payloadLength = 0;
   size_t expectedTotalFrame = 0;
   const unsigned long startTime = millis();
+  unsigned long lastProgressLogTime = startTime;
 
   while (millis() - startTime < USB_RESPONSE_TIMEOUT_MS) {
     if (totalBytesRead >= 4 && expectedTotalFrame == 0) {
@@ -303,14 +355,34 @@ ResponseReadResult readResponseFrameDynamic(uint8_t* frameBuffer,
       return ResponseReadResult::RECEIVED;
     }
 
-    const size_t targetBytes =
-        expectedTotalFrame == 0 ? 4 : expectedTotalFrame;
+    const size_t targetBytes = expectedTotalFrame == 0 ? 4 : expectedTotalFrame;
+    if (totalBytesRead >= targetBytes) {
+      return ResponseReadResult::INVALID_FRAME;
+    }
     const size_t requestedBytes = targetBytes - totalBytesRead;
     const size_t receivedBytes =
         xStreamBufferReceive(usbRxStreamBuffer, frameBuffer + totalBytesRead,
                              requestedBytes, pdMS_TO_TICKS(1));
     totalBytesRead += receivedBytes;
     vTaskDelay(1);
+
+    const unsigned long now = millis();
+    if (now - lastProgressLogTime >= USB_STATUS_PROGRESS_INTERVAL_MS) {
+      lastProgressLogTime = now;
+      logger.print(F("AceProManager::getStatus: Progress at "));
+      logger.print(now - usbStatusRequestStartTime);
+      logger.print(F(" ms: frame bytes read "));
+      logger.print(totalBytesRead);
+      logger.print(F(", USB reader bytes received "));
+      logger.print(usbRxTaskBytes);
+      logger.print(F(", CDC RX callbacks "));
+      logger.print(aceProUsbSerial.rxCallbackCount() -
+                   usbCdcRxCallbackCountAtStatusRequest);
+      logger.print(F(", CDC available "));
+      logger.print(aceProUsbSerial.available());
+      logger.print(F(", mounted "));
+      logger.println(aceProUsbSerial.mounted() ? F("yes.") : F("no."));
+    }
   }
 
   return ResponseReadResult::TIMEOUT;
@@ -531,6 +603,104 @@ void logUsbRxDiagnostics(Print& logger, const char* operation) {
   logger.print(aceProUsbSerial.available());
   logger.print(F(", ms since last reader data "));
   logger.println(usbRxLastByteTime == 0 ? UINT32_MAX : millis() - usbRxLastByteTime);
+  logger.print(F("AceProManager::"));
+  logger.print(operation);
+  logger.print(F(": CDC mounted "));
+  logger.print(aceProUsbSerial.mounted() ? F("yes") : F("no"));
+  logger.print(F(", observed mounts "));
+  logger.print(usbCdcMountCount);
+  logger.print(F(", observed unmounts "));
+  logger.print(usbCdcUnmountCount);
+  logger.print(F(", CDC mounts during get_status "));
+  logger.print(usbCdcMountCount - usbCdcMountCountAtStatusRequest);
+  logger.print(F(", CDC unmounts during get_status "));
+  logger.print(usbCdcUnmountCount - usbCdcUnmountCountAtStatusRequest);
+  logger.print(F(", CDC RX callbacks during get_status "));
+  logger.print(aceProUsbSerial.rxCallbackCount() - usbCdcRxCallbackCountAtStatusRequest);
+  logger.print(F(", buffered bytes at last CDC RX callback "));
+  logger.print(aceProUsbSerial.rxAvailableAtLastCallback());
+  logger.print(F(", last CDC transition "));
+  logger.print(usbCdcLastStateChangeWasMount ? F("mount") : F("unmount"));
+  logger.print(F(", ms since last CDC state change "));
+  logger.println(usbCdcLastStateChangeTime == 0
+                     ? UINT32_MAX
+                     : millis() - usbCdcLastStateChangeTime);
+
+  if (strcmp(operation, "getStatus") == 0) {
+    const uint32_t rxEventSequence = aceProUsbSerial.rxEventSequence();
+    const uint32_t availableRxEvents =
+        rxEventSequence - usbCdcRxEventSequenceAtStatusRequest;
+    const uint32_t firstRxSequence =
+        availableRxEvents > 32 ? rxEventSequence - 32
+                               : usbCdcRxEventSequenceAtStatusRequest;
+    if (firstRxSequence > usbCdcRxEventSequenceAtStatusRequest) {
+      logger.print(F("AceProManager::"));
+      logger.print(operation);
+      logger.print(F(": RX event history omitted "));
+      logger.print(firstRxSequence - usbCdcRxEventSequenceAtStatusRequest);
+      logger.println(F(" older callback(s)."));
+    }
+    for (uint32_t sequence = firstRxSequence; sequence < rxEventSequence; ++sequence) {
+      logger.print(F("AceProManager::"));
+      logger.print(operation);
+      logger.print(F(": CDC RX callback at "));
+      logger.print(aceProUsbSerial.rxEventTime(sequence) -
+                   usbStatusRequestStartTime);
+      logger.print(F(" ms; "));
+      logger.print(aceProUsbSerial.rxEventAvailable(sequence));
+      logger.println(F(" byte(s) in CDC FIFO at callback."));
+    }
+
+    const uint32_t mountEventTime = aceProUsbSerial.mountEventTime();
+    if (mountEventTime != 0 &&
+        mountEventTime != usbCdcMountEventTimeAtStatusRequest) {
+      logger.print(F("AceProManager::"));
+      logger.print(operation);
+      logger.print(F(": CDC mount callback at "));
+      logger.print(mountEventTime - usbStatusRequestStartTime);
+      logger.println(F(" ms from request start."));
+    }
+    const uint32_t unmountEventTime = aceProUsbSerial.unmountEventTime();
+    if (unmountEventTime != 0 &&
+        unmountEventTime != usbCdcUnmountEventTimeAtStatusRequest) {
+      logger.print(F("AceProManager::"));
+      logger.print(operation);
+      logger.print(F(": CDC unmount callback at "));
+      logger.print(unmountEventTime - usbStatusRequestStartTime);
+      logger.println(F(" ms from request start."));
+    }
+
+    const uint32_t transitionSequence = usbCdcTransitionSequence;
+    const uint32_t availableTransitions =
+        transitionSequence - usbCdcTransitionSequenceAtStatusRequest;
+    const uint32_t firstSequence =
+        availableTransitions > USB_CDC_TRANSITION_HISTORY_SIZE
+            ? transitionSequence - USB_CDC_TRANSITION_HISTORY_SIZE
+            : usbCdcTransitionSequenceAtStatusRequest;
+    if (firstSequence > usbCdcTransitionSequenceAtStatusRequest) {
+      logger.print(F("AceProManager::"));
+      logger.print(operation);
+      logger.print(F(": CDC transition history omitted "));
+      logger.print(firstSequence - usbCdcTransitionSequenceAtStatusRequest);
+      logger.println(F(" older event(s)."));
+    }
+    for (uint32_t sequence = firstSequence; sequence < transitionSequence; ++sequence) {
+      const size_t index = sequence % USB_CDC_TRANSITION_HISTORY_SIZE;
+      const uint32_t transitionTime = usbCdcTransitionTimes[index];
+      const uint32_t transitionBytes = usbCdcTransitionBytes[index];
+      const bool mounted = usbCdcTransitionMounts[index];
+
+      logger.print(F("AceProManager::"));
+      logger.print(operation);
+      logger.print(F(": CDC "));
+      logger.print(mounted ? F("mounted") : F("unmounted"));
+      logger.print(F(" at "));
+      logger.print(transitionTime - usbStatusRequestStartTime);
+      logger.print(F(" ms from request start; "));
+      logger.print(transitionBytes);
+      logger.println(F(" response byte(s) received at transition."));
+    }
+  }
 }
 
 bool requestAceProInfo(Print& logger) {
@@ -807,10 +977,11 @@ bool parseAceProStatusPayload(char* responseJson,
   status.fanSpeedRpm = static_cast<unsigned int>(fanSpeed);
   return true;
 }
+
 }  // namespace
 
 bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
-  static constexpr char REQUEST_PAYLOAD[] = "{\"id\":2,\"method\":\"get_status\"}";
+  static constexpr char REQUEST_PAYLOAD[] = "{\"method\":\"get_status\"}";
   constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
   uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
   requestFrame[0] = 0xFF;
@@ -838,6 +1009,14 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
   usbRxTaskDroppedBytes = 0;
   usbRxLastByteTime = 0;
   usbRxMaxAvailable = 0;
+  usbStatusRequestStartTime = millis();
+  usbCdcMountCountAtStatusRequest = usbCdcMountCount;
+  usbCdcUnmountCountAtStatusRequest = usbCdcUnmountCount;
+  usbCdcRxCallbackCountAtStatusRequest = aceProUsbSerial.rxCallbackCount();
+  usbCdcRxEventSequenceAtStatusRequest = aceProUsbSerial.rxEventSequence();
+  usbCdcMountEventTimeAtStatusRequest = aceProUsbSerial.mountEventTime();
+  usbCdcUnmountEventTimeAtStatusRequest = aceProUsbSerial.unmountEventTime();
+  usbCdcTransitionSequenceAtStatusRequest = usbCdcTransitionSequence;
 
   logger.println(F("AceProManager::getStatus: Sending get_status request..."));
   if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
@@ -847,13 +1026,14 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
   aceProUsbSerial.flush();
 
   // Allocate buffer large enough for header(4) + payload(~737) + CRC/term(3) = ~744 bytes
-  constexpr size_t FRAME_BUFFER_SIZE = 1024;
+  constexpr size_t FRAME_BUFFER_SIZE = 2048;
   uint8_t frameBuffer[FRAME_BUFFER_SIZE];
   size_t totalBytesRead = 0;
   size_t responseLength = 0;
 
   const ResponseReadResult readResult =
-      readResponseFrameDynamic(frameBuffer, FRAME_BUFFER_SIZE, totalBytesRead, responseLength);
+      readResponseFrameDynamic(frameBuffer, FRAME_BUFFER_SIZE, totalBytesRead,
+                               responseLength, logger);
 
   if (readResult == ResponseReadResult::TIMEOUT) {
     logger.println(F("AceProManager::getStatus: ERROR: No complete response received (Timeout)."));
