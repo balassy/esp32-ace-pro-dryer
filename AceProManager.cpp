@@ -2,8 +2,7 @@
 
 #include <Arduino.h>
 
-#include <USBHost.h>
-#include <USBHostSerial.h>
+#include <EspUsbHost.h>
 
 #include <climits>
 #include <cstdlib>
@@ -13,19 +12,20 @@
 #include <freertos/stream_buffer.h>
 #include <freertos/task.h>
 
-#include "config.h"
-
 namespace {
 
-USBHostSerialClass aceProUsbSerial;
+EspUsbHost aceUsbHost;
+EspUsbHostCdcSerial aceProUsbSerial(aceUsbHost);
+volatile bool aceProConnected = false;
+volatile bool aceProSerialOpenFailed = false;
 
 constexpr unsigned long USB_CONNECTION_TIMEOUT_MS = 5000;
 constexpr unsigned long USB_DIAGNOSTIC_INTERVAL_MS = 1000;
 constexpr unsigned long USB_RESPONSE_TIMEOUT_MS = 10000;
 constexpr unsigned long USB_STATUS_PROGRESS_INTERVAL_MS = 250;
 constexpr size_t MAX_RESPONSE_PAYLOAD_SIZE = 1024;
+constexpr size_t USB_CDC_RX_BUFFER_SIZE = 2048;
 constexpr size_t USB_RX_STREAM_BUFFER_SIZE = 4096;
-constexpr size_t USB_CDC_TRANSITION_HISTORY_SIZE = 8;
 constexpr uint8_t GET_INFO_REQUEST_ID = 1;
 
 StreamBufferHandle_t usbRxStreamBuffer = nullptr;
@@ -35,63 +35,12 @@ volatile uint32_t usbRxTaskBytes = 0;
 volatile uint32_t usbRxTaskDroppedBytes = 0;
 volatile uint32_t usbRxLastByteTime = 0;
 volatile uint32_t usbRxMaxAvailable = 0;
-volatile uint32_t usbCdcMountCount = 0;
-volatile uint32_t usbCdcUnmountCount = 0;
-volatile uint32_t usbCdcLastStateChangeTime = 0;
-volatile bool usbCdcLastStateChangeWasMount = false;
-volatile uint32_t usbCdcTransitionSequence = 0;
-volatile uint32_t usbCdcTransitionTimes[USB_CDC_TRANSITION_HISTORY_SIZE] = {};
-volatile uint32_t usbCdcTransitionBytes[USB_CDC_TRANSITION_HISTORY_SIZE] = {};
-volatile bool usbCdcTransitionMounts[USB_CDC_TRANSITION_HISTORY_SIZE] = {};
-bool usbCdcMountStateInitialized = false;
-bool usbCdcLastMounted = false;
-uint32_t usbCdcMountCountAtStatusRequest = 0;
-uint32_t usbCdcUnmountCountAtStatusRequest = 0;
-uint32_t usbCdcRxCallbackCountAtStatusRequest = 0;
-uint32_t usbCdcRxEventSequenceAtStatusRequest = 0;
-uint32_t usbCdcMountEventTimeAtStatusRequest = 0;
-uint32_t usbCdcUnmountEventTimeAtStatusRequest = 0;
-uint32_t usbCdcTransitionSequenceAtStatusRequest = 0;
 uint32_t usbStatusRequestStartTime = 0;
-
-void recordUsbCdcTransition(bool mounted) {
-  const uint32_t sequence = usbCdcTransitionSequence;
-  const size_t index = sequence % USB_CDC_TRANSITION_HISTORY_SIZE;
-  usbCdcTransitionTimes[index] = millis();
-  usbCdcTransitionBytes[index] = usbRxTaskBytes;
-  usbCdcTransitionMounts[index] = mounted;
-  usbCdcTransitionSequence = sequence + 1;
-}
 
 void usbRxTask(void*) {
   uint8_t inputBuffer[128];
   for (;;) {
-    if (!USBHost.tuhBackgroundActive()) {
-      USBHost.task();
-    }
-
-    const bool mounted = aceProUsbSerial.mounted();
-    if (!usbCdcMountStateInitialized) {
-      usbCdcMountStateInitialized = true;
-      usbCdcLastMounted = mounted;
-      if (mounted) {
-        ++usbCdcMountCount;
-        usbCdcLastStateChangeTime = millis();
-        usbCdcLastStateChangeWasMount = true;
-      }
-    } else if (mounted != usbCdcLastMounted) {
-      usbCdcLastMounted = mounted;
-      if (mounted) {
-        ++usbCdcMountCount;
-      } else {
-        ++usbCdcUnmountCount;
-      }
-      usbCdcLastStateChangeWasMount = mounted;
-      usbCdcLastStateChangeTime = millis();
-      recordUsbCdcTransition(mounted);
-    }
-
-    if (!mounted) {
+    if (!aceProConnected || !aceProUsbSerial.connected()) {
       vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
@@ -109,7 +58,14 @@ void usbRxTask(void*) {
         availableBytes < static_cast<int>(sizeof(inputBuffer))
             ? static_cast<size_t>(availableBytes)
             : sizeof(inputBuffer);
-    const size_t receivedBytes = aceProUsbSerial.read(inputBuffer, requestedBytes);
+    size_t receivedBytes = 0;
+    while (receivedBytes < requestedBytes) {
+      const int value = aceProUsbSerial.read();
+      if (value < 0) {
+        break;
+      }
+      inputBuffer[receivedBytes++] = static_cast<uint8_t>(value);
+    }
     if (receivedBytes == 0) {
       vTaskDelay(1);
       continue;
@@ -120,7 +76,6 @@ void usbRxTask(void*) {
     usbRxTaskBytes += static_cast<uint32_t>(receivedBytes);
     usbRxLastByteTime = millis();
 
-    // --> ADD THIS: Let the USB host controller breathe between chunks <--
     taskYIELD();
 
     if (bufferedBytes != receivedBytes) {
@@ -375,13 +330,10 @@ ResponseReadResult readResponseFrameDynamic(uint8_t* frameBuffer,
       logger.print(totalBytesRead);
       logger.print(F(", USB reader bytes received "));
       logger.print(usbRxTaskBytes);
-      logger.print(F(", CDC RX callbacks "));
-      logger.print(aceProUsbSerial.rxCallbackCount() -
-                   usbCdcRxCallbackCountAtStatusRequest);
       logger.print(F(", CDC available "));
       logger.print(aceProUsbSerial.available());
       logger.print(F(", mounted "));
-      logger.println(aceProUsbSerial.mounted() ? F("yes.") : F("no."));
+      logger.println(aceProUsbSerial.connected() ? F("yes.") : F("no."));
     }
   }
 
@@ -603,104 +555,6 @@ void logUsbRxDiagnostics(Print& logger, const char* operation) {
   logger.print(aceProUsbSerial.available());
   logger.print(F(", ms since last reader data "));
   logger.println(usbRxLastByteTime == 0 ? UINT32_MAX : millis() - usbRxLastByteTime);
-  logger.print(F("AceProManager::"));
-  logger.print(operation);
-  logger.print(F(": CDC mounted "));
-  logger.print(aceProUsbSerial.mounted() ? F("yes") : F("no"));
-  logger.print(F(", observed mounts "));
-  logger.print(usbCdcMountCount);
-  logger.print(F(", observed unmounts "));
-  logger.print(usbCdcUnmountCount);
-  logger.print(F(", CDC mounts during get_status "));
-  logger.print(usbCdcMountCount - usbCdcMountCountAtStatusRequest);
-  logger.print(F(", CDC unmounts during get_status "));
-  logger.print(usbCdcUnmountCount - usbCdcUnmountCountAtStatusRequest);
-  logger.print(F(", CDC RX callbacks during get_status "));
-  logger.print(aceProUsbSerial.rxCallbackCount() - usbCdcRxCallbackCountAtStatusRequest);
-  logger.print(F(", buffered bytes at last CDC RX callback "));
-  logger.print(aceProUsbSerial.rxAvailableAtLastCallback());
-  logger.print(F(", last CDC transition "));
-  logger.print(usbCdcLastStateChangeWasMount ? F("mount") : F("unmount"));
-  logger.print(F(", ms since last CDC state change "));
-  logger.println(usbCdcLastStateChangeTime == 0
-                     ? UINT32_MAX
-                     : millis() - usbCdcLastStateChangeTime);
-
-  if (strcmp(operation, "getStatus") == 0) {
-    const uint32_t rxEventSequence = aceProUsbSerial.rxEventSequence();
-    const uint32_t availableRxEvents =
-        rxEventSequence - usbCdcRxEventSequenceAtStatusRequest;
-    const uint32_t firstRxSequence =
-        availableRxEvents > 32 ? rxEventSequence - 32
-                               : usbCdcRxEventSequenceAtStatusRequest;
-    if (firstRxSequence > usbCdcRxEventSequenceAtStatusRequest) {
-      logger.print(F("AceProManager::"));
-      logger.print(operation);
-      logger.print(F(": RX event history omitted "));
-      logger.print(firstRxSequence - usbCdcRxEventSequenceAtStatusRequest);
-      logger.println(F(" older callback(s)."));
-    }
-    for (uint32_t sequence = firstRxSequence; sequence < rxEventSequence; ++sequence) {
-      logger.print(F("AceProManager::"));
-      logger.print(operation);
-      logger.print(F(": CDC RX callback at "));
-      logger.print(aceProUsbSerial.rxEventTime(sequence) -
-                   usbStatusRequestStartTime);
-      logger.print(F(" ms; "));
-      logger.print(aceProUsbSerial.rxEventAvailable(sequence));
-      logger.println(F(" byte(s) in CDC FIFO at callback."));
-    }
-
-    const uint32_t mountEventTime = aceProUsbSerial.mountEventTime();
-    if (mountEventTime != 0 &&
-        mountEventTime != usbCdcMountEventTimeAtStatusRequest) {
-      logger.print(F("AceProManager::"));
-      logger.print(operation);
-      logger.print(F(": CDC mount callback at "));
-      logger.print(mountEventTime - usbStatusRequestStartTime);
-      logger.println(F(" ms from request start."));
-    }
-    const uint32_t unmountEventTime = aceProUsbSerial.unmountEventTime();
-    if (unmountEventTime != 0 &&
-        unmountEventTime != usbCdcUnmountEventTimeAtStatusRequest) {
-      logger.print(F("AceProManager::"));
-      logger.print(operation);
-      logger.print(F(": CDC unmount callback at "));
-      logger.print(unmountEventTime - usbStatusRequestStartTime);
-      logger.println(F(" ms from request start."));
-    }
-
-    const uint32_t transitionSequence = usbCdcTransitionSequence;
-    const uint32_t availableTransitions =
-        transitionSequence - usbCdcTransitionSequenceAtStatusRequest;
-    const uint32_t firstSequence =
-        availableTransitions > USB_CDC_TRANSITION_HISTORY_SIZE
-            ? transitionSequence - USB_CDC_TRANSITION_HISTORY_SIZE
-            : usbCdcTransitionSequenceAtStatusRequest;
-    if (firstSequence > usbCdcTransitionSequenceAtStatusRequest) {
-      logger.print(F("AceProManager::"));
-      logger.print(operation);
-      logger.print(F(": CDC transition history omitted "));
-      logger.print(firstSequence - usbCdcTransitionSequenceAtStatusRequest);
-      logger.println(F(" older event(s)."));
-    }
-    for (uint32_t sequence = firstSequence; sequence < transitionSequence; ++sequence) {
-      const size_t index = sequence % USB_CDC_TRANSITION_HISTORY_SIZE;
-      const uint32_t transitionTime = usbCdcTransitionTimes[index];
-      const uint32_t transitionBytes = usbCdcTransitionBytes[index];
-      const bool mounted = usbCdcTransitionMounts[index];
-
-      logger.print(F("AceProManager::"));
-      logger.print(operation);
-      logger.print(F(": CDC "));
-      logger.print(mounted ? F("mounted") : F("unmounted"));
-      logger.print(F(" at "));
-      logger.print(transitionTime - usbStatusRequestStartTime);
-      logger.print(F(" ms from request start; "));
-      logger.print(transitionBytes);
-      logger.println(F(" response byte(s) received at transition."));
-    }
-  }
 }
 
 bool requestAceProInfo(Print& logger) {
@@ -981,7 +835,8 @@ bool parseAceProStatusPayload(char* responseJson,
 }  // namespace
 
 bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
-  static constexpr char REQUEST_PAYLOAD[] = "{\"method\":\"get_status\"}";
+  static constexpr char REQUEST_PAYLOAD[] =
+      "{\"id\":2,\"method\":\"get_status\"}";
   constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
   uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
   requestFrame[0] = 0xFF;
@@ -1010,13 +865,6 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
   usbRxLastByteTime = 0;
   usbRxMaxAvailable = 0;
   usbStatusRequestStartTime = millis();
-  usbCdcMountCountAtStatusRequest = usbCdcMountCount;
-  usbCdcUnmountCountAtStatusRequest = usbCdcUnmountCount;
-  usbCdcRxCallbackCountAtStatusRequest = aceProUsbSerial.rxCallbackCount();
-  usbCdcRxEventSequenceAtStatusRequest = aceProUsbSerial.rxEventSequence();
-  usbCdcMountEventTimeAtStatusRequest = aceProUsbSerial.mountEventTime();
-  usbCdcUnmountEventTimeAtStatusRequest = aceProUsbSerial.unmountEventTime();
-  usbCdcTransitionSequenceAtStatusRequest = usbCdcTransitionSequence;
 
   logger.println(F("AceProManager::getStatus: Sending get_status request..."));
   if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
@@ -1073,65 +921,78 @@ AceProManager::AceProManager(Print& logger) : _logger(logger) {}
 
 void AceProManager::setup() {
   _logger.println(F("AceProManager::setup: Initializing ACE Pro connection..."));
-  _logger.print(F("AceProManager::setup: USB pins - D+: "));
-  _logger.print(USB_D_PLUS_PIN);
-  _logger.print(F(", D-: "));
-  _logger.println(USB_D_MINUS_PIN);
 
-  if (!USBHost.begin()) {
-    _logger.println(F("AceProManager::setup: ERROR: Failed to start the USB host."));
-    return;
+  if (!_usbHostStarted) {
+    if (!aceProUsbSerial.setRxBufferSize(USB_CDC_RX_BUFFER_SIZE)) {
+      _logger.println(F("AceProManager::setup: ERROR: Failed to allocate the CDC receive buffer."));
+      return;
+    }
+
+    aceUsbHost.onDeviceConnected([](const EspUsbHostDeviceInfo& device) {
+      if (device.vid != 0x28E9 || device.pid != 0x018A) {
+        return;
+      }
+      if (aceUsbHost.serialPortCount(device.address) == 0) {
+        return;
+      }
+
+      aceProUsbSerial.setAddress(device.address);
+      aceProUsbSerial.setPort(0);
+      if (!aceProUsbSerial.begin(115200)) {
+        aceProConnected = false;
+        aceProSerialOpenFailed = true;
+        return;
+      }
+
+      aceProSerialOpenFailed = false;
+      aceProConnected = true;
+    });
+    aceUsbHost.onDeviceDisconnected([](const EspUsbHostDeviceInfo& device) {
+      if (device.address != aceProUsbSerial.address()) {
+        return;
+      }
+      aceProConnected = false;
+      aceProUsbSerial.end();
+      aceProUsbSerial.end();
+    });
+
+    if (!aceUsbHost.begin()) {
+      _logger.print(F("AceProManager::setup: ERROR: Failed to start EspUsbHost: "));
+      _logger.println(aceUsbHost.lastErrorName());
+      return;
+    }
+    _usbHostStarted = true;
+    _logger.println(F("AceProManager::setup: EspUsbHost started."));
   }
 
-  _logger.println(F("AceProManager::setup: USB host started."));
-  _logger.print(F("AceProManager::setup: USB host background worker: "));
-  _logger.println(USBHost.tuhBackgroundActive() ? F("active.") : F("inactive."));
-
-  _usbHostStarted = true;
-  aceProUsbSerial.begin(115200);
   if (!startUsbRxTask(_logger)) {
     return;
   }
-  _logger.println(F("AceProManager::setup: Waiting for a USB CDC interface at 115200 baud."));
+  _logger.println(F("AceProManager::setup: Waiting for the ACE Pro USB CDC interface."));
 
   const unsigned long startTime = millis();
   unsigned long lastDiagnosticTime = startTime;
-  while (!aceProUsbSerial.mounted() && millis() - startTime < USB_CONNECTION_TIMEOUT_MS) {
+  while (!aceProUsbSerial.connected() && !aceProSerialOpenFailed &&
+         millis() - startTime < USB_CONNECTION_TIMEOUT_MS) {
     const unsigned long now = millis();
     if (now - lastDiagnosticTime >= USB_DIAGNOSTIC_INTERVAL_MS) {
       lastDiagnosticTime = now;
       _logger.print(F("AceProManager::setup: Still waiting for USB CDC; elapsed "));
       _logger.print(now - startTime);
-      _logger.print(F(" ms; USB host root port active: "));
-      _logger.println(tuh_rhport_is_active(0) ? F("yes.") : F("no."));
+      _logger.println(F(" ms."));
     }
     delay(10);
   }
-  if (!aceProUsbSerial.mounted()) {
-    _logger.println(F("AceProManager::setup: ERROR: No USB CDC interface mounted within the timeout."));
-    _logger.println(F("AceProManager::setup: This USBHostSerialClass does not report devices without a CDC interface."));
-    _logger.println(F("AceProManager::setup: Check that the ACE Pro exposes CDC-ACM, plus host VBUS, ground, D+, and D-."));
+  if (!aceProUsbSerial.connected()) {
+    if (aceProSerialOpenFailed) {
+      _logger.println(F("AceProManager::setup: ERROR: Failed to open the ACE Pro CDC serial port."));
+      return;
+    }
+    _logger.println(F("AceProManager::setup: ERROR: No USB CDC interface connected within the timeout."));
     return;
   }
 
-  _logger.println(F("AceProManager::setup: USB CDC device enumerated."));
-  _logger.print(F("AceProManager::setup: USB device address: "));
-  _logger.println(aceProUsbSerial.devAddr());
-  _logger.print(F("AceProManager::setup: CDC interface number: "));
-  _logger.println(aceProUsbSerial.interfaceNumber());
-  _logger.print(F("AceProManager::setup: CDC interface index: "));
-  _logger.println(aceProUsbSerial.cdcIndex());
-
-  uint16_t vendorId = 0;
-  uint16_t productId = 0;
-  if (tuh_vid_pid_get(aceProUsbSerial.devAddr(), &vendorId, &productId)) {
-    char deviceId[32];
-    snprintf(deviceId, sizeof(deviceId), "VID=0x%04X PID=0x%04X", vendorId, productId);
-    _logger.print(F("AceProManager::setup: USB "));
-    _logger.println(deviceId);
-  } else {
-    _logger.println(F("AceProManager::setup: USB VID/PID is not available from TinyUSB."));
-  }
+  _logger.println(F("AceProManager::setup: ACE Pro USB CDC device connected."));
 
   if (!requestAceProInfo(_logger)) {
     _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
@@ -1144,7 +1005,7 @@ void AceProManager::setup() {
 }
 
 AceProManager::Status AceProManager::getStatus() {
-  if (!_usbHostStarted || !aceProUsbSerial.mounted()) {
+  if (!_usbHostStarted || !aceProUsbSerial.connected()) {
     _logger.println(F("AceProManager::getStatus: ERROR: USB CDC device is not connected."));
     _status.valid = false;
     _status.responseComplete = false;

@@ -9,6 +9,7 @@ profiles:
       - Adafruit GFX Library (1.13.0)
       - Adafruit BusIO (1.17.4)
       - ESP32RotaryEncoder (1.2.0)
+      - EspUsbHost (2.10.2)
     port: COM9
     port_config:
       baudrate: "115200"
