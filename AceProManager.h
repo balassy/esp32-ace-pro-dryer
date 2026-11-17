@@ -17,7 +17,9 @@ class AceProManager {
     unsigned int fanSpeedRpm = 0;
   };
 
-  void setup();
+  bool setup();
+  bool startDrying();
+  bool isConnected() const;
   Status getStatus();
 
  private:

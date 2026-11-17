@@ -27,6 +27,7 @@ constexpr size_t MAX_RESPONSE_PAYLOAD_SIZE = 1024;
 constexpr size_t USB_CDC_RX_BUFFER_SIZE = 2048;
 constexpr size_t USB_RX_STREAM_BUFFER_SIZE = 4096;
 constexpr uint8_t GET_INFO_REQUEST_ID = 1;
+constexpr uint8_t START_DRYING_REQUEST_ID = 3;
 
 StreamBufferHandle_t usbRxStreamBuffer = nullptr;
 TaskHandle_t usbRxTaskHandle = nullptr;
@@ -652,6 +653,83 @@ bool requestAceProInfo(Print& logger) {
   return true;
 }
 
+bool requestAceProDrying(Print& logger) {
+  static constexpr char REQUEST_PAYLOAD[] =
+      "{\"id\":3,\"method\":\"drying\",\"params\":{\"temp\":45,\"duration\":30,\"fan_speed\":1000}}";
+  constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
+  uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
+  requestFrame[0] = 0xFF;
+  requestFrame[1] = 0xAA;
+  requestFrame[2] = static_cast<uint8_t>(requestPayloadLength & 0xFF);
+  requestFrame[3] = static_cast<uint8_t>((requestPayloadLength >> 8) & 0xFF);
+  memcpy(requestFrame + 4, REQUEST_PAYLOAD, requestPayloadLength);
+
+  const uint16_t crc = calculateCrc16Mcrf4xx(
+      reinterpret_cast<const uint8_t*>(REQUEST_PAYLOAD), requestPayloadLength);
+  requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
+  requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
+  requestFrame[6 + requestPayloadLength] = 0xFE;
+
+  uint8_t discardedBytes[64];
+  while (xStreamBufferReceive(usbRxStreamBuffer, discardedBytes, sizeof(discardedBytes), 0) > 0) {
+  }
+  if (usbRxBufferOverflow) {
+    logger.println(F("AceProManager::startDrying: ERROR: USB receive buffer overflowed before the command response."));
+    usbRxBufferOverflow = false;
+    return false;
+  }
+
+  logger.println(F("AceProManager::startDrying: Sending drying command (45 C, 30 min, 1000 RPM)."));
+  if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
+    logger.println(F("AceProManager::startDrying: ERROR: Failed to send the drying command."));
+    return false;
+  }
+  aceProUsbSerial.flush();
+
+  uint8_t responsePayload[MAX_RESPONSE_PAYLOAD_SIZE + 1];
+  size_t responseLength = 0;
+  size_t bytesRead = 0;
+  uint8_t firstResponseBytes[16];
+  size_t firstResponseBytesLength = 0;
+  uint8_t lastResponseBytes[16];
+  size_t lastResponseBytesLength = 0;
+  size_t nextLastResponseByteIndex = 0;
+  const ResponseReadResult readResult =
+      readResponseFrame(responsePayload, MAX_RESPONSE_PAYLOAD_SIZE, responseLength,
+                        bytesRead, logger, "startDrying", firstResponseBytes,
+                        sizeof(firstResponseBytes), firstResponseBytesLength,
+                        lastResponseBytes, sizeof(lastResponseBytes),
+                        lastResponseBytesLength, nextLastResponseByteIndex);
+  if (readResult == ResponseReadResult::TIMEOUT) {
+    logResponseTimeout(logger, "startDrying", bytesRead, responseLength,
+                       firstResponseBytes, firstResponseBytesLength,
+                       lastResponseBytes, sizeof(lastResponseBytes),
+                       lastResponseBytesLength, nextLastResponseByteIndex);
+    return false;
+  }
+  if (readResult == ResponseReadResult::INVALID_FRAME) {
+    logger.println(F("AceProManager::startDrying: ERROR: Received an invalid command response frame."));
+    return false;
+  }
+
+  responsePayload[responseLength] = '\0';
+  const char* responseJson = reinterpret_cast<const char*>(responsePayload);
+  long responseId = -1;
+  long responseCode = 0;
+  if (!getJsonIntegerField(responseJson, "id", responseId) ||
+      responseId != START_DRYING_REQUEST_ID) {
+    logger.println(F("AceProManager::startDrying: ERROR: Response ID did not match the drying command."));
+    return false;
+  }
+  if (getJsonIntegerField(responseJson, "code", responseCode) && responseCode != 0) {
+    logger.println(F("AceProManager::startDrying: ERROR: ACE Pro rejected the drying command."));
+    return false;
+  }
+
+  logger.println(F("AceProManager::startDrying: Drying command acknowledged."));
+  return true;
+}
+
 // bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
 //   static constexpr char REQUEST_PAYLOAD[] = "{\"id\":2,\"method\":\"get_status\"}";
 //   constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
@@ -919,13 +997,13 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
 
 AceProManager::AceProManager(Print& logger) : _logger(logger) {}
 
-void AceProManager::setup() {
+bool AceProManager::setup() {
   _logger.println(F("AceProManager::setup: Initializing ACE Pro connection..."));
 
   if (!_usbHostStarted) {
     if (!aceProUsbSerial.setRxBufferSize(USB_CDC_RX_BUFFER_SIZE)) {
       _logger.println(F("AceProManager::setup: ERROR: Failed to allocate the CDC receive buffer."));
-      return;
+      return false;
     }
 
     aceUsbHost.onDeviceConnected([](const EspUsbHostDeviceInfo& device) {
@@ -953,20 +1031,19 @@ void AceProManager::setup() {
       }
       aceProConnected = false;
       aceProUsbSerial.end();
-      aceProUsbSerial.end();
     });
 
     if (!aceUsbHost.begin()) {
       _logger.print(F("AceProManager::setup: ERROR: Failed to start EspUsbHost: "));
       _logger.println(aceUsbHost.lastErrorName());
-      return;
+      return false;
     }
     _usbHostStarted = true;
     _logger.println(F("AceProManager::setup: EspUsbHost started."));
   }
 
   if (!startUsbRxTask(_logger)) {
-    return;
+    return false;
   }
   _logger.println(F("AceProManager::setup: Waiting for the ACE Pro USB CDC interface."));
 
@@ -986,22 +1063,34 @@ void AceProManager::setup() {
   if (!aceProUsbSerial.connected()) {
     if (aceProSerialOpenFailed) {
       _logger.println(F("AceProManager::setup: ERROR: Failed to open the ACE Pro CDC serial port."));
-      return;
+      return false;
     }
     _logger.println(F("AceProManager::setup: ERROR: No USB CDC interface connected within the timeout."));
-    return;
+    return false;
   }
 
   _logger.println(F("AceProManager::setup: ACE Pro USB CDC device connected."));
 
   if (!requestAceProInfo(_logger)) {
     _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
-    return;
+    return false;
   }
 
   _logger.println(F("AceProManager::setup: Initializing ACE Pro connection DONE."));
+  return true;
+}
 
-  this->getStatus();
+bool AceProManager::isConnected() const {
+  return _usbHostStarted && aceProConnected && aceProUsbSerial.connected();
+}
+
+bool AceProManager::startDrying() {
+  if (!isConnected()) {
+    _logger.println(F("AceProManager::startDrying: ERROR: USB CDC device is not connected."));
+    return false;
+  }
+
+  return requestAceProDrying(_logger);
 }
 
 AceProManager::Status AceProManager::getStatus() {

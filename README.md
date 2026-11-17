@@ -26,6 +26,10 @@ Install the following libraries:
 
 The exact versions of these libraries used to create this code are visible in the [sketch.yaml](./sketch.yaml) file.
 
+### Dryer control
+
+Selecting **Start** sends the ACE Pro a drying command for 45 °C, 30 minutes, and a 1000 RPM fan speed. While connected, the ESP32 requests dryer status every 10 seconds. Verify the settings and operation on the ACE Pro during initial hardware testing.
+
 ### Remote logging
 
 The device connects to the configured local Wi-Fi network and serves live log output to up to four TCP clients on port 23. Put `WIFI_SSID` and `WIFI_PASSWORD` in the ignored `config.secrets.h` file; `config.h` uses empty placeholder values when that file is absent. Find the device's assigned IP address in your router's DHCP client list or in the Serial log, then connect to that IP and port 23 with a TCP client such as PuTTY in Raw mode. Logging starts on Serial and switches to the remote logger when ACE Pro setup is requested; the switch is announced on Serial first.

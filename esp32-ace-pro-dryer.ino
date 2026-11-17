@@ -33,6 +33,10 @@ MainPage mainPage(displayManager, knobManager, onMainSettingsClicked);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
 Page* activePage = nullptr;
 
+constexpr unsigned long ACE_STATUS_POLL_INTERVAL_MS = 10000;
+unsigned long lastAceStatusPollTime = 0;
+bool aceStatusPollingEnabled = false;
+
 // ------------------------------ Arduino handlers ------------------------------
 
 void setup() {
@@ -63,6 +67,11 @@ void setup() {
 void loop() {
   remoteLogger.update();
   displayManager.updateSpinner();
+  if (aceStatusPollingEnabled && aceProManager.isConnected() &&
+      millis() - lastAceStatusPollTime >= ACE_STATUS_POLL_INTERVAL_MS) {
+    lastAceStatusPollTime = millis();
+    aceProManager.getStatus();
+  }
   if (activePage != nullptr) {
     activePage->loop();
   }
@@ -107,7 +116,20 @@ void onSettingsStartClicked() {
   logRouter.setOutput(remoteLogger);
   logRouter.println(F("Logging destination is now the remote logger."));
   logRouter.println(F("Starting dryer..."));
-  aceProManager.setup();
+  if (!aceProManager.setup()) {
+    displayManager.printStatus("ACE connection failed");
+    ledManager.turnOnBlue();
+    return;
+  }
+
+  const bool startAcknowledged = aceProManager.startDrying();
+  aceStatusPollingEnabled = true;
+  lastAceStatusPollTime = millis();
+  if (startAcknowledged) {
+    displayManager.printStatus("Drying...");
+  } else {
+    displayManager.printStatus("Start unconfirmed");
+  }
 }
 
 void onSettingsBackClicked() {
