@@ -5,10 +5,12 @@
 #include <EspUsbHost.h>
 
 #include <climits>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <freertos/stream_buffer.h>
 #include <freertos/task.h>
 
@@ -21,13 +23,12 @@ volatile bool aceProSerialOpenFailed = false;
 
 constexpr unsigned long USB_CONNECTION_TIMEOUT_MS = 5000;
 constexpr unsigned long USB_DIAGNOSTIC_INTERVAL_MS = 1000;
-constexpr unsigned long USB_RESPONSE_TIMEOUT_MS = 10000;
+constexpr unsigned long USB_RESPONSE_TIMEOUT_MS = 4000;
 constexpr unsigned long USB_STATUS_PROGRESS_INTERVAL_MS = 250;
 constexpr size_t MAX_RESPONSE_PAYLOAD_SIZE = 1024;
 constexpr size_t USB_CDC_RX_BUFFER_SIZE = 2048;
 constexpr size_t USB_RX_STREAM_BUFFER_SIZE = 4096;
-constexpr uint8_t GET_INFO_REQUEST_ID = 1;
-constexpr uint8_t START_DRYING_REQUEST_ID = 3;
+uint16_t nextAceRequestId = 1;
 
 StreamBufferHandle_t usbRxStreamBuffer = nullptr;
 TaskHandle_t usbRxTaskHandle = nullptr;
@@ -37,6 +38,33 @@ volatile uint32_t usbRxTaskDroppedBytes = 0;
 volatile uint32_t usbRxLastByteTime = 0;
 volatile uint32_t usbRxMaxAvailable = 0;
 uint32_t usbStatusRequestStartTime = 0;
+SemaphoreHandle_t aceCommandMutex = nullptr;
+
+class AceCommandLock {
+ public:
+  AceCommandLock() : _locked(aceCommandMutex != nullptr &&
+                             xSemaphoreTake(aceCommandMutex, portMAX_DELAY) == pdTRUE) {}
+
+  ~AceCommandLock() {
+    if (_locked) {
+      xSemaphoreGive(aceCommandMutex);
+    }
+  }
+
+  bool locked() const { return _locked; }
+
+ private:
+  bool _locked;
+};
+
+uint16_t allocateAceRequestId() {
+  const uint16_t requestId = nextAceRequestId;
+  ++nextAceRequestId;
+  if (nextAceRequestId == 0) {
+    nextAceRequestId = 1;
+  }
+  return requestId;
+}
 
 void usbRxTask(void*) {
   uint8_t inputBuffer[128];
@@ -559,17 +587,26 @@ void logUsbRxDiagnostics(Print& logger, const char* operation) {
 }
 
 bool requestAceProInfo(Print& logger) {
-  static constexpr char REQUEST_PAYLOAD[] = "{\"id\":1,\"method\":\"get_info\"}";
-  constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
-  uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
+  const uint16_t requestId = allocateAceRequestId();
+  char requestPayload[48];
+  const int payloadLength =
+      snprintf(requestPayload, sizeof(requestPayload),
+               "{\"id\":%u,\"method\":\"get_info\"}",
+               static_cast<unsigned int>(requestId));
+  if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(requestPayload)) {
+    logger.println(F("AceProManager::setup: ERROR: Failed to create the get_info request."));
+    return false;
+  }
+  const size_t requestPayloadLength = static_cast<size_t>(payloadLength);
+  uint8_t requestFrame[sizeof(requestPayload) + 6];
   requestFrame[0] = 0xFF;
   requestFrame[1] = 0xAA;
   requestFrame[2] = static_cast<uint8_t>(requestPayloadLength & 0xFF);
   requestFrame[3] = static_cast<uint8_t>((requestPayloadLength >> 8) & 0xFF);
-  memcpy(requestFrame + 4, REQUEST_PAYLOAD, requestPayloadLength);
+  memcpy(requestFrame + 4, requestPayload, requestPayloadLength);
 
   const uint16_t crc = calculateCrc16Mcrf4xx(
-      reinterpret_cast<const uint8_t*>(REQUEST_PAYLOAD), requestPayloadLength);
+      reinterpret_cast<const uint8_t*>(requestPayload), requestPayloadLength);
   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
   requestFrame[6 + requestPayloadLength] = 0xFE;
@@ -624,7 +661,8 @@ bool requestAceProInfo(Print& logger) {
   long responseId = -1;
   long responseCode = -1;
   const char* responseJson = reinterpret_cast<const char*>(responsePayload);
-  if (!getJsonIntegerField(responseJson, "id", responseId) || responseId != GET_INFO_REQUEST_ID) {
+  if (!getJsonIntegerField(responseJson, "id", responseId) ||
+      responseId != static_cast<long>(requestId)) {
     logger.println(F("AceProManager::setup: ERROR: Response ID did not match the get_info request."));
     return false;
   }
@@ -653,19 +691,27 @@ bool requestAceProInfo(Print& logger) {
   return true;
 }
 
-bool requestAceProDrying(Print& logger) {
-  static constexpr char REQUEST_PAYLOAD[] =
-      "{\"id\":3,\"method\":\"drying\",\"params\":{\"temp\":45,\"duration\":30,\"fan_speed\":1000}}";
-  constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
-  uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
+bool sendAceProCommand(Print& logger,
+                       const char* requestPayload,
+                       size_t requestPayloadLength,
+                       uint16_t requestId,
+                       const char* operation,
+                       const char* commandDescription) {
+  uint8_t requestFrame[128];
+  if (requestPayloadLength > sizeof(requestFrame) - 7) {
+    logger.print(F("AceProManager::"));
+    logger.print(operation);
+    logger.println(F(": ERROR: Command payload exceeds the request buffer."));
+    return false;
+  }
   requestFrame[0] = 0xFF;
   requestFrame[1] = 0xAA;
   requestFrame[2] = static_cast<uint8_t>(requestPayloadLength & 0xFF);
   requestFrame[3] = static_cast<uint8_t>((requestPayloadLength >> 8) & 0xFF);
-  memcpy(requestFrame + 4, REQUEST_PAYLOAD, requestPayloadLength);
+  memcpy(requestFrame + 4, requestPayload, requestPayloadLength);
 
   const uint16_t crc = calculateCrc16Mcrf4xx(
-      reinterpret_cast<const uint8_t*>(REQUEST_PAYLOAD), requestPayloadLength);
+      reinterpret_cast<const uint8_t*>(requestPayload), requestPayloadLength);
   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
   requestFrame[6 + requestPayloadLength] = 0xFE;
@@ -674,14 +720,21 @@ bool requestAceProDrying(Print& logger) {
   while (xStreamBufferReceive(usbRxStreamBuffer, discardedBytes, sizeof(discardedBytes), 0) > 0) {
   }
   if (usbRxBufferOverflow) {
-    logger.println(F("AceProManager::startDrying: ERROR: USB receive buffer overflowed before the command response."));
+    logger.print(F("AceProManager::"));
+    logger.print(operation);
+    logger.println(F(": ERROR: USB receive buffer overflowed before the command response."));
     usbRxBufferOverflow = false;
     return false;
   }
 
-  logger.println(F("AceProManager::startDrying: Sending drying command (45 C, 30 min, 1000 RPM)."));
+  logger.print(F("AceProManager::"));
+  logger.print(operation);
+  logger.print(F(": Sending "));
+  logger.println(commandDescription);
   if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
-    logger.println(F("AceProManager::startDrying: ERROR: Failed to send the drying command."));
+    logger.print(F("AceProManager::"));
+    logger.print(operation);
+    logger.println(F(": ERROR: Failed to send the command."));
     return false;
   }
   aceProUsbSerial.flush();
@@ -696,170 +749,94 @@ bool requestAceProDrying(Print& logger) {
   size_t nextLastResponseByteIndex = 0;
   const ResponseReadResult readResult =
       readResponseFrame(responsePayload, MAX_RESPONSE_PAYLOAD_SIZE, responseLength,
-                        bytesRead, logger, "startDrying", firstResponseBytes,
+                        bytesRead, logger, operation, firstResponseBytes,
                         sizeof(firstResponseBytes), firstResponseBytesLength,
                         lastResponseBytes, sizeof(lastResponseBytes),
                         lastResponseBytesLength, nextLastResponseByteIndex);
   if (readResult == ResponseReadResult::TIMEOUT) {
-    logResponseTimeout(logger, "startDrying", bytesRead, responseLength,
+    logResponseTimeout(logger, operation, bytesRead, responseLength,
                        firstResponseBytes, firstResponseBytesLength,
                        lastResponseBytes, sizeof(lastResponseBytes),
                        lastResponseBytesLength, nextLastResponseByteIndex);
     return false;
   }
   if (readResult == ResponseReadResult::INVALID_FRAME) {
-    logger.println(F("AceProManager::startDrying: ERROR: Received an invalid command response frame."));
+    logger.print(F("AceProManager::"));
+    logger.print(operation);
+    logger.println(F(": ERROR: Received an invalid command response frame."));
     return false;
   }
 
   responsePayload[responseLength] = '\0';
   const char* responseJson = reinterpret_cast<const char*>(responsePayload);
+  if (strcmp(operation, "stopDrying") == 0) {
+    logger.println(F("AceProManager::stopDrying: Response JSON:"));
+    logger.write(reinterpret_cast<const uint8_t*>(responseJson), responseLength);
+    logger.println();
+  }
+
   long responseId = -1;
   long responseCode = 0;
   if (!getJsonIntegerField(responseJson, "id", responseId) ||
-      responseId != START_DRYING_REQUEST_ID) {
-    logger.println(F("AceProManager::startDrying: ERROR: Response ID did not match the drying command."));
+      responseId != requestId) {
+    logger.print(F("AceProManager::"));
+    logger.print(operation);
+    logger.println(F(": ERROR: Response ID did not match the command."));
     return false;
   }
   if (getJsonIntegerField(responseJson, "code", responseCode) && responseCode != 0) {
-    logger.println(F("AceProManager::startDrying: ERROR: ACE Pro rejected the drying command."));
+    logger.print(F("AceProManager::"));
+    logger.print(operation);
+    logger.println(F(": ERROR: ACE Pro rejected the command."));
     return false;
   }
 
-  logger.println(F("AceProManager::startDrying: Drying command acknowledged."));
+  logger.print(F("AceProManager::"));
+  logger.print(operation);
+  logger.println(F(": Command acknowledged."));
   return true;
 }
 
-// bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
-//   static constexpr char REQUEST_PAYLOAD[] = "{\"id\":2,\"method\":\"get_status\"}";
-//   constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
-//   uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
-//   requestFrame[0] = 0xFF;
-//   requestFrame[1] = 0xAA;
-//   requestFrame[2] = static_cast<uint8_t>(requestPayloadLength & 0xFF);
-//   requestFrame[3] = static_cast<uint8_t>((requestPayloadLength >> 8) & 0xFF);
-//   memcpy(requestFrame + 4, REQUEST_PAYLOAD, requestPayloadLength);
+bool requestAceProDrying(Print& logger) {
+  const uint16_t requestId = allocateAceRequestId();
+  char requestPayload[112];
+  const int payloadLength =
+      snprintf(requestPayload, sizeof(requestPayload),
+               "{\"id\":%u,\"method\":\"drying\",\"params\":{\"temp\":45,\"duration\":3,\"fan_speed\":50}}",
+               static_cast<unsigned int>(requestId));
+  if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(requestPayload)) {
+    logger.println(F("AceProManager::startDrying: ERROR: Failed to create the drying request."));
+    return false;
+  }
+  return sendAceProCommand(logger, requestPayload, static_cast<size_t>(payloadLength),
+                           requestId, "startDrying",
+                           "drying command (45 C, 30 min, 50 RPM).");
+}
 
-//   const uint16_t crc = calculateCrc16Mcrf4xx(
-//       reinterpret_cast<const uint8_t*>(REQUEST_PAYLOAD), requestPayloadLength);
-//   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
-//   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
-//   requestFrame[6 + requestPayloadLength] = 0xFE;
-
-//   uint8_t discardedBytes[64];
-//   while (xStreamBufferReceive(usbRxStreamBuffer, discardedBytes, sizeof(discardedBytes), 0) > 0) {
-//   }
-//   if (usbRxBufferOverflow) {
-//     logger.println(F("AceProManager::getStatus: ERROR: USB receive buffer overflowed before get_status response."));
-//     usbRxBufferOverflow = false;
-//     return false;
-//   }
-//   usbRxTaskBytes = 0;
-//   usbRxTaskDroppedBytes = 0;
-//   usbRxLastByteTime = 0;
-//   usbRxMaxAvailable = 0;
-
-//   logger.println(F("AceProManager::getStatus: Sending get_status request..."));
-//   if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
-//     logger.println(F("AceProManager::getStatus: ERROR: Failed to send the get_status request."));
-//     return false;
-//   }
-//   aceProUsbSerial.flush();
-
-//   uint8_t responsePayload[MAX_RESPONSE_PAYLOAD_SIZE + 1];
-//   size_t responseLength = 0;
-//   size_t bytesRead = 0;
-//   uint8_t firstResponseBytes[16];
-//   size_t firstResponseBytesLength = 0;
-//   uint8_t lastResponseBytes[16];
-//   size_t lastResponseBytesLength = 0;
-//   size_t nextLastResponseByteIndex = 0;
-//   const ResponseReadResult readResult =
-//       readResponseFrame(responsePayload, MAX_RESPONSE_PAYLOAD_SIZE, responseLength,
-//                         bytesRead, logger, "getStatus", firstResponseBytes, sizeof(firstResponseBytes),
-//                         firstResponseBytesLength, lastResponseBytes,
-//                         sizeof(lastResponseBytes), lastResponseBytesLength,
-//                         nextLastResponseByteIndex);
-//   if (readResult == ResponseReadResult::TIMEOUT) {
-//     logger.println(F("AceProManager::getStatus: ERROR: No complete response received."));
-//     logResponseTimeout(logger, "getStatus", bytesRead, responseLength,
-//                        firstResponseBytes, firstResponseBytesLength,
-//                        lastResponseBytes, sizeof(lastResponseBytes),
-//                        lastResponseBytesLength, nextLastResponseByteIndex);
-//     logUsbRxDiagnostics(logger, "getStatus");
-//     if (usbRxBufferOverflow) {
-//       logger.println(F("AceProManager::getStatus: WARNING: Application USB receive buffer overflowed."));
-//       usbRxBufferOverflow = false;
-//     }
-//     return false;
-//   }
-//   if (readResult == ResponseReadResult::INVALID_FRAME) {
-//     logger.println(F("AceProManager::getStatus: ERROR: Received an invalid ACE Pro response frame."));
-//     return false;
-//   }
-
-//   responsePayload[responseLength] = '\0';
-//   char* responseJson = reinterpret_cast<char*>(responsePayload);
-//   long responseId = -1;
-//   long responseCode = -1;
-//   if (!getJsonIntegerField(responseJson, "id", responseId) || responseId != 2) {
-//     logger.println(F("AceProManager::getStatus: ERROR: Response ID did not match the get_status request."));
-//     return false;
-//   }
-//   if (!getJsonIntegerField(responseJson, "code", responseCode) || responseCode != 0) {
-//     logger.println(F("AceProManager::getStatus: ERROR: ACE Pro returned an unsuccessful get_status response."));
-//     return false;
-//   }
-
-//   AceProManager::Status newStatus;
-//   long currentTemperature = 0;
-//   long fanSpeed = 0;
-//   char* dryerStatusJson = nullptr;
-//   char dryerStatus[16];
-//   long targetTemperature = 0;
-//   long targetDuration = 0;
-//   long remainingTime = 0;
-//   if (!getJsonIntegerField(responseJson, "temp", currentTemperature) ||
-//       !getJsonIntegerField(responseJson, "fan_speed", fanSpeed) ||
-//       !getJsonObjectField(responseJson, "dryer_status", dryerStatusJson) ||
-//       !getJsonStringField(dryerStatusJson, "status", dryerStatus, sizeof(dryerStatus)) ||
-//       !getJsonIntegerField(dryerStatusJson, "target_temp", targetTemperature) ||
-//       !getJsonIntegerField(dryerStatusJson, "duration", targetDuration) ||
-//       !getJsonIntegerField(dryerStatusJson, "remain_time", remainingTime)) {
-//     logger.println(F("AceProManager::getStatus: ERROR: get_status response is missing or has invalid status fields."));
-//     return false;
-//   }
-
-//   if (strcmp(dryerStatus, "drying") != 0 && strcmp(dryerStatus, "stop") != 0) {
-//     logger.println(F("AceProManager::getStatus: ERROR: ACE Pro returned an unknown dryer status."));
-//     return false;
-//   }
-//   if (currentTemperature < INT_MIN || currentTemperature > INT_MAX ||
-//       targetTemperature < INT_MIN || targetTemperature > INT_MAX ||
-//       fanSpeed < 0 || static_cast<unsigned long>(fanSpeed) > UINT_MAX ||
-//       targetDuration < 0 || static_cast<unsigned long>(targetDuration) > UINT_MAX ||
-//       remainingTime < 0 || static_cast<unsigned long>(remainingTime) > UINT_MAX) {
-//     logger.println(F("AceProManager::getStatus: ERROR: get_status response contains out-of-range values."));
-//     return false;
-//   }
-
-//   newStatus.valid = true;
-//   newStatus.currentTemperatureCelsius = static_cast<int>(currentTemperature);
-//   newStatus.isDrying = strcmp(dryerStatus, "drying") == 0;
-//   newStatus.targetTemperatureCelsius = static_cast<int>(targetTemperature);
-//   newStatus.targetDurationMinutes = static_cast<unsigned int>(targetDuration);
-//   newStatus.remainingTimeMinutes = static_cast<unsigned int>(remainingTime);
-//   newStatus.fanSpeedRpm = static_cast<unsigned int>(fanSpeed);
-//   status = newStatus;
-//   return true;
-// }
+bool requestAceProDryingStop(Print& logger) {
+  const uint16_t requestId = allocateAceRequestId();
+  char requestPayload[64];
+  const int payloadLength =
+      snprintf(requestPayload, sizeof(requestPayload),
+               "{\"id\":%u,\"method\":\"drying_stop\",\"params\":{}}",
+               static_cast<unsigned int>(requestId));
+  if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(requestPayload)) {
+    logger.println(F("AceProManager::stopDrying: ERROR: Failed to create the drying_stop request."));
+    return false;
+  }
+  return sendAceProCommand(logger, requestPayload, static_cast<size_t>(payloadLength),
+                           requestId, "stopDrying",
+                           "drying_stop command.");
+}
 
 bool parseAceProStatusPayload(char* responseJson,
                               AceProManager::Status& status,
-                              Print& logger) {
+                              Print& logger,
+                              uint16_t expectedRequestId) {
   long responseId = -1;
   long responseCode = 0;
-  if (!getJsonIntegerField(responseJson, "id", responseId) || responseId != 2) {
+  if (!getJsonIntegerField(responseJson, "id", responseId) ||
+      responseId != static_cast<long>(expectedRequestId)) {
     logger.println(F("AceProManager::getStatus: ERROR: Response ID did not match the get_status request."));
     return false;
   }
@@ -905,7 +882,7 @@ bool parseAceProStatusPayload(char* responseJson,
   status.isDrying = strcmp(dryerStatus, "drying") == 0;
   status.targetTemperatureCelsius = static_cast<int>(targetTemperature);
   status.targetDurationMinutes = static_cast<unsigned int>(targetDuration);
-  status.remainingTimeMinutes = static_cast<unsigned int>(remainingTime);
+  status.remainingTimeSeconds = static_cast<unsigned int>(remainingTime);
   status.fanSpeedRpm = static_cast<unsigned int>(fanSpeed);
   return true;
 }
@@ -913,18 +890,28 @@ bool parseAceProStatusPayload(char* responseJson,
 }  // namespace
 
 bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
-  static constexpr char REQUEST_PAYLOAD[] =
-      "{\"id\":2,\"method\":\"get_status\"}";
-  constexpr size_t requestPayloadLength = sizeof(REQUEST_PAYLOAD) - 1;
-  uint8_t requestFrame[sizeof(REQUEST_PAYLOAD) + 6];
+  constexpr size_t FRAME_BUFFER_SIZE = 2048;
+  static uint8_t frameBuffer[FRAME_BUFFER_SIZE];
+  const uint16_t requestId = allocateAceRequestId();
+  char requestPayload[48];
+  const int payloadLength =
+      snprintf(requestPayload, sizeof(requestPayload),
+               "{\"id\":%u,\"method\":\"get_status\"}",
+               static_cast<unsigned int>(requestId));
+  if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(requestPayload)) {
+    logger.println(F("AceProManager::getStatus: ERROR: Failed to create the get_status request."));
+    return false;
+  }
+  const size_t requestPayloadLength = static_cast<size_t>(payloadLength);
+  uint8_t requestFrame[sizeof(requestPayload) + 6];
   requestFrame[0] = 0xFF;
   requestFrame[1] = 0xAA;
   requestFrame[2] = static_cast<uint8_t>(requestPayloadLength & 0xFF);
   requestFrame[3] = static_cast<uint8_t>((requestPayloadLength >> 8) & 0xFF);
-  memcpy(requestFrame + 4, REQUEST_PAYLOAD, requestPayloadLength);
+  memcpy(requestFrame + 4, requestPayload, requestPayloadLength);
 
   const uint16_t crc = calculateCrc16Mcrf4xx(
-      reinterpret_cast<const uint8_t*>(REQUEST_PAYLOAD), requestPayloadLength);
+      reinterpret_cast<const uint8_t*>(requestPayload), requestPayloadLength);
   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
   requestFrame[6 + requestPayloadLength] = 0xFE;
@@ -951,9 +938,6 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
   }
   aceProUsbSerial.flush();
 
-  // Allocate buffer large enough for header(4) + payload(~737) + CRC/term(3) = ~744 bytes
-  constexpr size_t FRAME_BUFFER_SIZE = 2048;
-  uint8_t frameBuffer[FRAME_BUFFER_SIZE];
   size_t totalBytesRead = 0;
   size_t responseLength = 0;
 
@@ -969,7 +953,7 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
         responseLength <= FRAME_BUFFER_SIZE - 7) {
       frameBuffer[totalBytesRead] = '\0';
       char* partialJson = reinterpret_cast<char*>(frameBuffer + 4);
-      if (parseAceProStatusPayload(partialJson, status, logger)) {
+      if (parseAceProStatusPayload(partialJson, status, logger, requestId)) {
         status.responseComplete = false;
         logger.println(F("AceProManager::getStatus: Parsed status from an incomplete, unverified response."));
         logUsbRxDiagnostics(logger, "getStatus");
@@ -987,7 +971,7 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
 
   char* responseJson = reinterpret_cast<char*>(frameBuffer + 4);
   responseJson[responseLength] = '\0';
-  if (!parseAceProStatusPayload(responseJson, status, logger)) {
+  if (!parseAceProStatusPayload(responseJson, status, logger, requestId)) {
     return false;
   }
   status.responseComplete = true;
@@ -999,6 +983,14 @@ AceProManager::AceProManager(Print& logger) : _logger(logger) {}
 
 bool AceProManager::setup() {
   _logger.println(F("AceProManager::setup: Initializing ACE Pro connection..."));
+
+  if (aceCommandMutex == nullptr) {
+    aceCommandMutex = xSemaphoreCreateMutex();
+    if (aceCommandMutex == nullptr) {
+      _logger.println(F("AceProManager::setup: ERROR: Failed to create the ACE command mutex."));
+      return false;
+    }
+  }
 
   if (!_usbHostStarted) {
     if (!aceProUsbSerial.setRxBufferSize(USB_CDC_RX_BUFFER_SIZE)) {
@@ -1071,6 +1063,11 @@ bool AceProManager::setup() {
 
   _logger.println(F("AceProManager::setup: ACE Pro USB CDC device connected."));
 
+  AceCommandLock commandLock;
+  if (!commandLock.locked()) {
+    _logger.println(F("AceProManager::setup: ERROR: ACE command mutex is unavailable."));
+    return false;
+  }
   if (!requestAceProInfo(_logger)) {
     _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
     return false;
@@ -1085,6 +1082,11 @@ bool AceProManager::isConnected() const {
 }
 
 bool AceProManager::startDrying() {
+  AceCommandLock commandLock;
+  if (!commandLock.locked()) {
+    _logger.println(F("AceProManager::startDrying: ERROR: ACE command mutex is unavailable."));
+    return false;
+  }
   if (!isConnected()) {
     _logger.println(F("AceProManager::startDrying: ERROR: USB CDC device is not connected."));
     return false;
@@ -1093,7 +1095,28 @@ bool AceProManager::startDrying() {
   return requestAceProDrying(_logger);
 }
 
+bool AceProManager::stopDrying() {
+  AceCommandLock commandLock;
+  if (!commandLock.locked()) {
+    _logger.println(F("AceProManager::stopDrying: ERROR: ACE command mutex is unavailable."));
+    return false;
+  }
+  if (!isConnected()) {
+    _logger.println(F("AceProManager::stopDrying: ERROR: USB CDC device is not connected."));
+    return false;
+  }
+
+  return requestAceProDryingStop(_logger);
+}
+
 AceProManager::Status AceProManager::getStatus() {
+  AceCommandLock commandLock;
+  if (!commandLock.locked()) {
+    _logger.println(F("AceProManager::getStatus: ERROR: ACE command mutex is unavailable."));
+    _status.valid = false;
+    _status.responseComplete = false;
+    return _status;
+  }
   if (!_usbHostStarted || !aceProUsbSerial.connected()) {
     _logger.println(F("AceProManager::getStatus: ERROR: USB CDC device is not connected."));
     _status.valid = false;
@@ -1122,8 +1145,8 @@ AceProManager::Status AceProManager::getStatus() {
   _logger.print(_status.targetDurationMinutes);
   _logger.println(F(" minutes"));
   _logger.print(F("AceProManager::getStatus: Remaining time: "));
-  _logger.print(_status.remainingTimeMinutes);
-  _logger.println(F(" minutes"));
+  _logger.print(_status.remainingTimeSeconds);
+  _logger.println(F(" seconds"));
   _logger.print(F("AceProManager::getStatus: Fan speed: "));
   _logger.print(_status.fanSpeedRpm);
   _logger.println(F(" RPM"));

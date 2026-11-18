@@ -18,6 +18,7 @@
 void onKnobTurned(long value);
 void onKnobClicked(unsigned long duration);
 void onMainSettingsClicked();
+void onMainStopClicked();
 void onSettingsStartClicked();
 void onSettingsBackClicked();
 void activatePage(Page& page);
@@ -29,13 +30,11 @@ LogRouter logRouter(Serial);
 RemoteLogger remoteLogger;
 AceProManager aceProManager(logRouter);
 
-MainPage mainPage(displayManager, knobManager, onMainSettingsClicked);
+MainPage mainPage(displayManager, knobManager, onMainSettingsClicked, onMainStopClicked);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
 Page* activePage = nullptr;
 
-constexpr unsigned long ACE_STATUS_POLL_INTERVAL_MS = 10000;
-unsigned long lastAceStatusPollTime = 0;
-bool aceStatusPollingEnabled = false;
+bool aceDryingActive = false;
 
 // ------------------------------ Arduino handlers ------------------------------
 
@@ -67,11 +66,6 @@ void setup() {
 void loop() {
   remoteLogger.update();
   displayManager.updateSpinner();
-  if (aceStatusPollingEnabled && aceProManager.isConnected() &&
-      millis() - lastAceStatusPollTime >= ACE_STATUS_POLL_INTERVAL_MS) {
-    lastAceStatusPollTime = millis();
-    aceProManager.getStatus();
-  }
   if (activePage != nullptr) {
     activePage->loop();
   }
@@ -107,6 +101,18 @@ void onMainSettingsClicked() {
   activatePage(settingsPage);
 }
 
+void onMainStopClicked() {
+  logRouter.println(F("Stopping dryer..."));
+  if (aceProManager.stopDrying()) {
+    aceDryingActive = false;
+    mainPage.setStopButtonVisible(false);
+    displayManager.printStatus("Drying stopped");
+    ledManager.turnOnGreen();
+  } else {
+    displayManager.printStatus("Stop unconfirmed");
+  }
+}
+
 void onSettingsStartClicked() {
   activatePage(mainPage);
   displayManager.printStatus("Heating...");
@@ -123,9 +129,9 @@ void onSettingsStartClicked() {
   }
 
   const bool startAcknowledged = aceProManager.startDrying();
-  aceStatusPollingEnabled = true;
-  lastAceStatusPollTime = millis();
   if (startAcknowledged) {
+    aceDryingActive = true;
+    mainPage.setStopButtonVisible(true);
     displayManager.printStatus("Drying...");
   } else {
     displayManager.printStatus("Start unconfirmed");
@@ -134,6 +140,7 @@ void onSettingsStartClicked() {
 
 void onSettingsBackClicked() {
   activatePage(mainPage);
+  mainPage.setStopButtonVisible(aceDryingActive);
   displayManager.printStatus("Ready.");
   ledManager.turnOnGreen();
 }

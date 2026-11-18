@@ -13,12 +13,13 @@ class AceProManager {
     bool isDrying = false;
     int targetTemperatureCelsius = 0;
     unsigned int targetDurationMinutes = 0;
-    unsigned int remainingTimeMinutes = 0;
+    unsigned int remainingTimeSeconds = 0;
     unsigned int fanSpeedRpm = 0;
   };
 
   bool setup();
   bool startDrying();
+  bool stopDrying();
   bool isConnected() const;
   Status getStatus();
 

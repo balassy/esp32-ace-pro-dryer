@@ -28,7 +28,7 @@ The exact versions of these libraries used to create this code are visible in th
 
 ### Dryer control
 
-Selecting **Start** sends the ACE Pro a drying command for 45 °C, 30 minutes, and a 1000 RPM fan speed. While connected, the ESP32 requests dryer status every 10 seconds. Verify the settings and operation on the ACE Pro during initial hardware testing.
+Selecting **Start** sends the ACE Pro a drying command for 45 °C, 30 minutes, and a 1000 RPM fan speed. While drying, a **Stop** button is available on the main screen. Status is not polled automatically. Verify the settings and operation on the ACE Pro during initial hardware testing.
 
 ### Remote logging
 
