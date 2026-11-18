@@ -19,6 +19,19 @@ void Menu::activate() {
   _display.printMenuButtons(_primaryText, _secondaryText, _primarySelected);
 }
 
+void Menu::setSecondaryButton(const char* text, ClickCallback callback) {
+  _secondaryText = text;
+  _secondaryCallback = callback;
+  if (!_isActive.load()) {
+    return;
+  }
+
+  _primarySelected = true;
+  const bool hasSecondaryButton = _secondaryText != nullptr;
+  _knob.configure(0, hasSecondaryButton ? 1 : 0, 1, 0);
+  _display.printMenuButtons(_primaryText, _secondaryText, _primarySelected);
+}
+
 void Menu::onKnobTurned(long value) {
   if (!_isActive.load()) {
     return;

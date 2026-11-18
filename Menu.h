@@ -14,6 +14,7 @@ class Menu {
        ClickCallback secondaryCallback = nullptr);
 
   void activate();
+  void setSecondaryButton(const char* text, ClickCallback callback);
   void onKnobTurned(long value);
   void onKnobClicked();
   void loop();
