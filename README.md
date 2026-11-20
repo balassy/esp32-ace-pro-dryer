@@ -6,6 +6,20 @@ Turn your Anycubic ACE Pro into a standalone filament dryer with an ESP32.
 
 ## Hardware 🪛
 
+### Anycubic ACE Pro
+
+> **This app was built with Anycubic ACE Pro version 1 (aka. Original ACE Pro), it was not tested with an ACE 2 Pro.**
+
+The ACE Pro version 1 communicates as a USB CDC device at 115200 baud with `VID=0x28E9` and `PID=0x018A`.
+
+Values returned by the `get_info` method:
+
+```
+Device model: Anycubic Color Engine Pro
+Firmware: V1.3.863
+Boot firmware: V1.0.1
+```
+
 ### Components 🔩
 
 - [ESP32-S3-DevKitC-1 microcontroller](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/index.html) (dual USB)
