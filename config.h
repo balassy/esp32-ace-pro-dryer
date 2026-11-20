@@ -6,6 +6,7 @@
 #else
 inline constexpr char WIFI_SSID[] = "";
 inline constexpr char WIFI_PASSWORD[] = "";
+inline constexpr char WIFI_HOSTNAME[] = "";
 #endif
 
 inline constexpr long ENCODER_MIN_VALUE = 30;

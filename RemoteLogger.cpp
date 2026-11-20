@@ -1,6 +1,7 @@
 #include "RemoteLogger.h"
 
 #include <cstring>
+#include <ESPmDNS.h>
 
 #include "config.h"
 #include "LogRouter.h"
@@ -28,8 +29,15 @@ bool RemoteLogger::setup() {
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   
-  logRouter.println(F("RemoteLogger::setup: Wi-Fi connection is in progress."));
-  
+  logRouter.println(F("RemoteLogger::setup: Connecting to Wi-Fi...DONE"));
+
+  logRouter.println(F("RemoteLogger::setup: Setting up mDNS..."));
+  if (!MDNS.begin(WIFI_HOSTNAME)) {
+    logRouter.println(F("RemoteLogger::setup: Setting up mDNS...FAILED!"));
+  }
+  MDNS.addService("telnet", "tcp", 23);
+  logRouter.println(F("RemoteLogger::setup: Setting up mDNS... DONE"));
+
   _started = true;
   return true;
 }
