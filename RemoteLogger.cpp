@@ -5,6 +5,10 @@
 #include "config.h"
 #include "LogRouter.h"
 
+void RemoteLogger::setConnectionStatusCallback(ConnectionStatusCallback callback) {
+  _connectionStatusCallback = callback;
+}
+
 bool RemoteLogger::setup() {
   logRouter.print(F("RemoteLogger::setup: Connecting to Wi-Fi SSID \""));
   logRouter.print(WIFI_SSID);
@@ -75,6 +79,10 @@ void RemoteLogger::update() {
     logRouter.print(F("RemoteLogger::update: Client connected from "));
     logRouter.println(incoming.remoteIP());
     _clients[slot].println(F("Welcome! Remote log stream connected."));
+    if (_connectionStatusCallback != nullptr) {
+      _clients[slot].print(F("ACE Pro connection: "));
+      _clients[slot].println(_connectionStatusCallback() ? F("connected.") : F("disconnected."));
+    }
   }
 
   for (WiFiClient& client : _clients) {

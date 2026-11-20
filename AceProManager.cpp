@@ -10,7 +10,6 @@
 #include <cstring>
 
 #include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
 #include <freertos/stream_buffer.h>
 #include <freertos/task.h>
 
@@ -38,24 +37,6 @@ volatile uint32_t usbRxTaskDroppedBytes = 0;
 volatile uint32_t usbRxLastByteTime = 0;
 volatile uint32_t usbRxMaxAvailable = 0;
 uint32_t usbStatusRequestStartTime = 0;
-SemaphoreHandle_t aceCommandMutex = nullptr;
-
-class AceCommandLock {
- public:
-  AceCommandLock() : _locked(aceCommandMutex != nullptr &&
-                             xSemaphoreTake(aceCommandMutex, portMAX_DELAY) == pdTRUE) {}
-
-  ~AceCommandLock() {
-    if (_locked) {
-      xSemaphoreGive(aceCommandMutex);
-    }
-  }
-
-  bool locked() const { return _locked; }
-
- private:
-  bool _locked;
-};
 
 uint16_t allocateAceRequestId() {
   const uint16_t requestId = nextAceRequestId;
@@ -447,6 +428,10 @@ ResponseReadResult readResponseFrame(uint8_t* payload,
   uint8_t inputBuffer[64];
 
   while (millis() - startTime < USB_RESPONSE_TIMEOUT_MS) {
+    if (!aceProConnected || !aceProUsbSerial.connected()) {
+      return ResponseReadResult::TIMEOUT;
+    }
+
     const size_t receivedBytes =
         xStreamBufferReceive(usbRxStreamBuffer, inputBuffer, sizeof(inputBuffer), 1);
     if (receivedBytes == 0) {
@@ -610,6 +595,7 @@ bool requestAceProInfo(Print& logger) {
   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
   requestFrame[6 + requestPayloadLength] = 0xFE;
+  const size_t requestFrameLength = requestPayloadLength + 7;
 
   uint8_t discardedBytes[64];
   while (xStreamBufferReceive(usbRxStreamBuffer, discardedBytes, sizeof(discardedBytes), 0) > 0) {
@@ -625,7 +611,7 @@ bool requestAceProInfo(Print& logger) {
   usbRxMaxAvailable = 0;
 
   logger.println(F("AceProManager::setup: Sending get_info connectivity probe..."));
-  if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
+  if (aceProUsbSerial.write(requestFrame, requestFrameLength) != requestFrameLength) {
     logger.println(F("AceProManager::setup: ERROR: Failed to send the get_info request."));
     return false;
   }
@@ -715,6 +701,7 @@ bool sendAceProCommand(Print& logger,
   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
   requestFrame[6 + requestPayloadLength] = 0xFE;
+  const size_t requestFrameLength = requestPayloadLength + 7;
 
   uint8_t discardedBytes[64];
   while (xStreamBufferReceive(usbRxStreamBuffer, discardedBytes, sizeof(discardedBytes), 0) > 0) {
@@ -731,7 +718,7 @@ bool sendAceProCommand(Print& logger,
   logger.print(operation);
   logger.print(F(": Sending "));
   logger.println(commandDescription);
-  if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
+  if (aceProUsbSerial.write(requestFrame, requestFrameLength) != requestFrameLength) {
     logger.print(F("AceProManager::"));
     logger.print(operation);
     logger.println(F(": ERROR: Failed to send the command."));
@@ -915,6 +902,7 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
   requestFrame[4 + requestPayloadLength] = static_cast<uint8_t>(crc & 0xFF);
   requestFrame[5 + requestPayloadLength] = static_cast<uint8_t>(crc >> 8);
   requestFrame[6 + requestPayloadLength] = 0xFE;
+  const size_t requestFrameLength = requestPayloadLength + 7;
 
   // Clear any stale bytes in the stream buffer
   uint8_t discardedBytes[64];
@@ -932,7 +920,7 @@ bool requestAceProStatus(Print& logger, AceProManager::Status& status) {
   usbStatusRequestStartTime = millis();
 
   logger.println(F("AceProManager::getStatus: Sending get_status request..."));
-  if (aceProUsbSerial.write(requestFrame, sizeof(requestFrame)) != sizeof(requestFrame)) {
+  if (aceProUsbSerial.write(requestFrame, requestFrameLength) != requestFrameLength) {
     logger.println(F("AceProManager::getStatus: ERROR: Failed to send the get_status request."));
     return false;
   }
@@ -984,17 +972,20 @@ AceProManager::AceProManager(Print& logger) : _logger(logger) {}
 bool AceProManager::setup() {
   _logger.println(F("AceProManager::setup: Initializing ACE Pro connection..."));
 
-  if (aceCommandMutex == nullptr) {
-    aceCommandMutex = xSemaphoreCreateMutex();
-    if (aceCommandMutex == nullptr) {
-      _logger.println(F("AceProManager::setup: ERROR: Failed to create the ACE command mutex."));
-      return false;
-    }
-  }
-
   if (!_usbHostStarted) {
     if (!aceProUsbSerial.setRxBufferSize(USB_CDC_RX_BUFFER_SIZE)) {
       _logger.println(F("AceProManager::setup: ERROR: Failed to allocate the CDC receive buffer."));
+      return false;
+    }
+
+    aceProUsbSerial.setPort(0);
+    if (!aceProUsbSerial.begin(115200)) {
+      _logger.println(F("AceProManager::setup: ERROR: Failed to initialize the CDC serial interface."));
+      return false;
+    }
+
+    if (!startUsbRxTask(_logger)) {
+      aceProUsbSerial.end();
       return false;
     }
 
@@ -1003,29 +994,25 @@ bool AceProManager::setup() {
         return;
       }
       if (aceUsbHost.serialPortCount(device.address) == 0) {
-        return;
-      }
-
-      aceProUsbSerial.setAddress(device.address);
-      aceProUsbSerial.setPort(0);
-      if (!aceProUsbSerial.begin(115200)) {
         aceProConnected = false;
         aceProSerialOpenFailed = true;
         return;
       }
 
+      aceProUsbSerial.setAddress(device.address);
       aceProSerialOpenFailed = false;
       aceProConnected = true;
     });
     aceUsbHost.onDeviceDisconnected([](const EspUsbHostDeviceInfo& device) {
-      if (device.address != aceProUsbSerial.address()) {
+      if (device.vid != 0x28E9 || device.pid != 0x018A) {
         return;
       }
       aceProConnected = false;
-      aceProUsbSerial.end();
+      aceProUsbSerial.clearAddress();
     });
 
     if (!aceUsbHost.begin()) {
+      aceProUsbSerial.end();
       _logger.print(F("AceProManager::setup: ERROR: Failed to start EspUsbHost: "));
       _logger.println(aceUsbHost.lastErrorName());
       return false;
@@ -1034,9 +1021,6 @@ bool AceProManager::setup() {
     _logger.println(F("AceProManager::setup: EspUsbHost started."));
   }
 
-  if (!startUsbRxTask(_logger)) {
-    return false;
-  }
   _logger.println(F("AceProManager::setup: Waiting for the ACE Pro USB CDC interface."));
 
   const unsigned long startTime = millis();
@@ -1063,14 +1047,17 @@ bool AceProManager::setup() {
 
   _logger.println(F("AceProManager::setup: ACE Pro USB CDC device connected."));
 
-  AceCommandLock commandLock;
-  if (!commandLock.locked()) {
-    _logger.println(F("AceProManager::setup: ERROR: ACE command mutex is unavailable."));
-    return false;
-  }
   if (!requestAceProInfo(_logger)) {
-    _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED."));
-    return false;
+    _logger.println(F("AceProManager::setup: get_info failed; rebuilding the CDC connection."));
+    aceProUsbSerial.end();
+    if (!aceProUsbSerial.begin(115200)) {
+      _logger.println(F("AceProManager::setup: ERROR: Failed to reopen the ACE Pro CDC serial port."));
+      return false;
+    }
+    if (!requestAceProInfo(_logger)) {
+      _logger.println(F("AceProManager::setup: ACE Pro communication check FAILED after reconnect."));
+      return false;
+    }
   }
 
   _logger.println(F("AceProManager::setup: Initializing ACE Pro connection DONE."));
@@ -1082,11 +1069,11 @@ bool AceProManager::isConnected() const {
 }
 
 bool AceProManager::startDrying() {
-  AceCommandLock commandLock;
-  if (!commandLock.locked()) {
-    _logger.println(F("AceProManager::startDrying: ERROR: ACE command mutex is unavailable."));
+  if (!isConnected() && !setup()) {
+    _logger.println(F("AceProManager::startDrying: ERROR: Unable to establish the ACE Pro connection."));
     return false;
   }
+
   if (!isConnected()) {
     _logger.println(F("AceProManager::startDrying: ERROR: USB CDC device is not connected."));
     return false;
@@ -1096,11 +1083,27 @@ bool AceProManager::startDrying() {
 }
 
 bool AceProManager::stopDrying() {
-  AceCommandLock commandLock;
-  if (!commandLock.locked()) {
-    _logger.println(F("AceProManager::stopDrying: ERROR: ACE command mutex is unavailable."));
+  if (!isConnected() && !setup()) {
+    _logger.println(F("AceProManager::stopDrying: ERROR: Unable to establish the ACE Pro connection."));
     return false;
   }
+
+  bool stopAcknowledged = false;
+  if (!isConnected()) {
+    _logger.println(F("AceProManager::stopDrying: ERROR: USB CDC device is not connected."));
+    return false;
+  }
+  stopAcknowledged = requestAceProDryingStop(_logger);
+
+  if (stopAcknowledged) {
+    return true;
+  }
+
+  _logger.println(F("AceProManager::stopDrying: Rechecking the ACE Pro connection before retrying."));
+  if (!setup()) {
+    return false;
+  }
+
   if (!isConnected()) {
     _logger.println(F("AceProManager::stopDrying: ERROR: USB CDC device is not connected."));
     return false;
@@ -1110,21 +1113,19 @@ bool AceProManager::stopDrying() {
 }
 
 AceProManager::Status AceProManager::getStatus() {
-  AceCommandLock commandLock;
-  if (!commandLock.locked()) {
-    _logger.println(F("AceProManager::getStatus: ERROR: ACE command mutex is unavailable."));
-    _status.valid = false;
-    _status.responseComplete = false;
+  _status = Status{};
+  if (!isConnected()) {
+    _logger.println(F("AceProManager::getStatus: ERROR: USB CDC device is not connected."));
     return _status;
   }
-  if (!_usbHostStarted || !aceProUsbSerial.connected()) {
-    _logger.println(F("AceProManager::getStatus: ERROR: USB CDC device is not connected."));
+  if (!requestAceProStatus(_logger, _status)) {
+    _logger.println(F("AceProManager::getStatus: Request failed; reconnect the ACE Pro and try again."));
     _status.valid = false;
     _status.responseComplete = false;
     return _status;
   }
 
-  if (!requestAceProStatus(_logger, _status)) {
+  if (!_status.valid) {
     _status.valid = false;
     _status.responseComplete = false;
     return _status;

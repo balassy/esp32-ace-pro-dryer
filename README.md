@@ -42,7 +42,7 @@ The exact versions of these libraries used to create this code are visible in th
 
 ### Dryer control
 
-Selecting **Start** sends the ACE Pro a drying command for 45 °C, 30 minutes, and a 1000 RPM fan speed. While drying, a **Stop** button is available on the main screen. Status is not polled automatically. Verify the settings and operation on the ACE Pro during initial hardware testing.
+The ESP32 starts the USB host at boot and shows the ACE Pro connection state in the right side of the main status bar. The host detects the ACE Pro when it is powered on later or reconnects after a power cycle. Selecting **Start** requests the current ACE Pro status; it does not start drying. If the ACE Pro is disconnected, the request returns unavailable without waiting for reconnection; power on the ACE Pro and try again once the connection indicator shows connected. A **Stop** button is available on the main screen while the status reports that drying is active. Status is not polled automatically.
 
 ### Remote logging
 

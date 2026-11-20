@@ -9,6 +9,7 @@ class DisplayManager {
   bool setup();
   void clear();
   void printStatus(const char* text);
+  void setAceProConnected(bool connected);
   void printMenuButtons(const char* primaryText, const char* secondaryText, bool primarySelected);
   void updateSpinner();
   void printCurrentTemperature(long value);
@@ -16,6 +17,7 @@ class DisplayManager {
 
  private:
    void drawSpinner();
+   void drawAceProIndicator();
    void printCenteredMenuButton(const char* text, int x, int width, int y);
 
    static constexpr int SCREEN_WIDTH = 128;       // Width of the display in pixels.
@@ -28,6 +30,7 @@ class DisplayManager {
    static constexpr unsigned long SPINNER_INTERVAL_MS = 500;
 
    Adafruit_SSD1306 _display;
+   bool _aceProConnected = false;
    unsigned long _lastSpinnerUpdate = 0;
    unsigned int _spinnerFrame = 0;
 };

@@ -5,6 +5,9 @@
 
 class RemoteLogger : public Print {
  public:
+  using ConnectionStatusCallback = bool (*)();
+
+  void setConnectionStatusCallback(ConnectionStatusCallback callback);
   bool setup();
   void update();
 
@@ -18,4 +21,5 @@ class RemoteLogger : public Print {
   WiFiClient _clients[MAX_CLIENTS];
   bool _started = false;
   bool _serverStarted = false;
+  ConnectionStatusCallback _connectionStatusCallback = nullptr;
 };
