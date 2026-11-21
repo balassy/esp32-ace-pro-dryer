@@ -1,9 +1,5 @@
 // Platform libraries.
 #include <Arduino.h>     // To add IntelliSense for platform constants.
-#include <atomic>
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 
 // Read configuration and secrets.
 #include "config.h"
@@ -41,28 +37,15 @@ Page* activePage = nullptr;
 
 bool aceDryingActive = false;
 bool aceConnectionIndicatorState = false;
-enum class AceStatusTaskState : uint8_t {
-  IDLE,
-  RUNNING,
-  COMPLETE
-};
-AceProManager::Status aceStatusResult;
-std::atomic<AceStatusTaskState> aceStatusTaskState{AceStatusTaskState::IDLE};
 
 bool isAceProConnectedForRemoteLog() {
   return aceProManager.isConnected();
 }
 
-void aceStatusRequestTask(void*) {
-  aceStatusResult = aceProManager.getStatus();
-  aceStatusTaskState.store(AceStatusTaskState::COMPLETE, std::memory_order_release);
-  vTaskDelete(nullptr);
-}
-
-void applyAceStatus(const AceProManager::Status& status) {
-  if (!status.valid || !status.responseComplete) {
+void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
+  if (!dryerStatus.valid || !dryerStatus.responseComplete) {
     displayManager.printStatus("Status unavailable");
-  } else if (status.isDrying) {
+  } else if (dryerStatus.isDrying) {
     aceDryingActive = true;
     mainPage.setStopButtonVisible(true);
     displayManager.printStatus("Drying");
@@ -86,37 +69,70 @@ void setup() {
   ledManager.turnOnBlue();
 
   remoteLogger.setConnectionStatusCallback(isAceProConnectedForRemoteLog);
-  if (!remoteLogger.setup()) {
-    logRouter.println(F("RemoteLogger::setup: failed; check the Wi-Fi SSID in config.h."));
+  if (remoteLogger.setup()) {
+    logRouter.println(F("setup: Logging destination switching from Serial to remote logger."));
+    logRouter.flush();
+    logRouter.setOutput(remoteLogger);
+    logRouter.println(F("setup: Logging destination is now the remote logger."));  
+  } else {
+    logRouter.println(F("setup: RemoteLogger::setup: failed; check the Wi-Fi settings in config.h."));
   }
 
   displayManager.setup();
   knobManager.setup(onKnobTurned, onKnobClicked);
-
+  
   activatePage(mainPage);
-  displayManager.printStatus("Ready.");
 
-  aceProManager.setup();
-  aceConnectionIndicatorState = aceProManager.isConnected();
-  displayManager.setAceProConnected(aceConnectionIndicatorState);
+  if(aceProManager.setup()) {
+    displayManager.printStatus("Ready.");
+
+    aceConnectionIndicatorState = aceProManager.isConnected();
+    displayManager.setAceProConnected(aceConnectionIndicatorState);
+  } else {
+    displayManager.printStatus("ACE not found!");
+  }
 
   ledManager.turnOnGreen();
   logRouter.println(F("setup: Initializing ESP32 ACE Pro Dryer DONE."));
+  logRouter.println();
   logRouter.flush();
 }
 
 void loop() {
-  remoteLogger.update();
   displayManager.updateSpinner();
+  remoteLogger.update();
   const bool aceConnected = aceProManager.isConnected();
   if (aceConnected != aceConnectionIndicatorState) {
     aceConnectionIndicatorState = aceConnected;
     displayManager.setAceProConnected(aceConnected);
   }
-  if (aceStatusTaskState.load(std::memory_order_acquire) == AceStatusTaskState::COMPLETE) {
-    applyAceStatus(aceStatusResult);
-    aceStatusTaskState.store(AceStatusTaskState::IDLE, std::memory_order_release);
+
+  AceProManager::DryerStatus dryerStatus;
+  if (aceProManager.takeDryerStatus(dryerStatus)) {
+    applyDryerStatus(dryerStatus);
   }
+  bool dryingStopped = false;
+  if (aceProManager.takeStop(dryingStopped)) {
+    if (dryingStopped) {
+      aceDryingActive = false;
+      mainPage.setStopButtonVisible(false);
+      displayManager.printStatus("Drying stopped");
+      ledManager.turnOnGreen();
+    } else {
+      displayManager.printStatus("Stop unconfirmed");
+    }
+  }
+
+  static unsigned long lastCommandLogMs = 0;
+  if (aceProManager.isCommandRunning() && millis() - lastCommandLogMs >= 1000) {
+    lastCommandLogMs = millis();
+    logRouter.print(F("loop: ACE command still running, phase "));
+    logRouter.print(aceProManager.commandPhase());
+    logRouter.print(F(", elapsed "));
+    logRouter.print(aceProManager.commandElapsedMs());
+    logRouter.println(F(" ms."));
+  }
+
   if (activePage != nullptr) {
     activePage->loop();
   }
@@ -154,35 +170,17 @@ void onMainSettingsClicked() {
 
 void onMainStopClicked() {
   logRouter.println(F("Stopping dryer..."));
-  if (aceProManager.stopDrying()) {
-    aceDryingActive = false;
-    mainPage.setStopButtonVisible(false);
-    displayManager.printStatus("Drying stopped");
-    ledManager.turnOnGreen();
-  } else {
-    displayManager.printStatus("Stop unconfirmed");
+  if (!aceProManager.requestStop()) {
+    displayManager.printStatus("Busy");
+    return;
   }
+  displayManager.printStatus("Stopping...");
 }
 
 void onSettingsStartClicked() {
   activatePage(mainPage);
-  Serial.println(F("Logging destination switching from Serial to remote logger."));
-  Serial.flush();
-  logRouter.setOutput(remoteLogger);
-  logRouter.println(F("Logging destination is now the remote logger."));
-  logRouter.println(F("Requesting ACE Pro status..."));
-
-  AceStatusTaskState expectedState = AceStatusTaskState::IDLE;
-  if (!aceStatusTaskState.compare_exchange_strong(
-          expectedState, AceStatusTaskState::RUNNING, std::memory_order_acq_rel)) {
-    displayManager.printStatus("Status request busy");
-    return;
-  }
-
-  if (xTaskCreate(aceStatusRequestTask, "aceStatusReq", 8192, nullptr, 1, nullptr) != pdPASS) {
-    aceStatusTaskState.store(AceStatusTaskState::IDLE, std::memory_order_release);
-    logRouter.println(F("ERROR: Failed to start the ACE status request task."));
-    displayManager.printStatus("Status unavailable");
+  if (!aceProManager.requestDryerStatus()) {
+    displayManager.printStatus("Busy");
     return;
   }
   displayManager.printStatus("Checking ACE Pro...");

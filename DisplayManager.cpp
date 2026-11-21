@@ -44,7 +44,7 @@ bool DisplayManager::setup() {
 
 void DisplayManager::clear() {
   _display.clearDisplay();
-  drawAceProIndicator();
+  _drawAceProIndicator();
   _display.display();
 }
 
@@ -68,7 +68,7 @@ void DisplayManager::printStatus(const char* text) {
   // Print the centered text inside the bar.
   _display.setCursor(startX, startY);
   _display.print(text);
-  drawAceProIndicator();
+  _drawAceProIndicator();
 
   _display.display();
 }
@@ -79,11 +79,11 @@ void DisplayManager::setAceProConnected(bool connected) {
   }
 
   _aceProConnected = connected;
-  drawAceProIndicator();
+  _drawAceProIndicator();
   _display.display();
 }
 
-void DisplayManager::drawAceProIndicator() {
+void DisplayManager::_drawAceProIndicator() {
   constexpr int indicatorX = SCREEN_WIDTH - 9;
   constexpr int indicatorY = STATUS_BAR_HEIGHT / 2;
   _display.fillRect(SCREEN_WIDTH - 12, 0, 12, STATUS_BAR_HEIGHT, SSD1306_WHITE);
@@ -113,16 +113,16 @@ void DisplayManager::printMenuButtons(const char* primaryText,
   _display.drawFastVLine(buttonWidth, menuBarY, MENU_BAR_HEIGHT, SSD1306_WHITE);
 
   _display.setTextColor(primaryForeground);
-  printCenteredMenuButton(primaryText, 0, buttonWidth, menuBarY);
+  _printCenteredMenuButton(primaryText, 0, buttonWidth, menuBarY);
   _display.setTextColor(secondaryForeground);
   if (secondaryText != nullptr) {
-    printCenteredMenuButton(secondaryText, buttonWidth, SCREEN_WIDTH - buttonWidth, menuBarY);
+    _printCenteredMenuButton(secondaryText, buttonWidth, SCREEN_WIDTH - buttonWidth, menuBarY);
   }
 
   _display.display();
 }
 
-void DisplayManager::printCenteredMenuButton(const char* text, int x, int width, int y) {
+void DisplayManager::_printCenteredMenuButton(const char* text, int x, int width, int y) {
   if (text == nullptr) {
     return;
   }

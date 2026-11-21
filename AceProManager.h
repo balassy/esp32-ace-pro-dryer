@@ -2,29 +2,43 @@
 
 #include <Arduino.h>
 
+#include "AceProClient.h"
+#include "AceProJobManager.h"
+
 class AceProManager {
  public:
   explicit AceProManager(Print& logger);
 
-  struct Status {
-    bool valid = false;  // Required status fields were parsed successfully.
-    bool responseComplete = false;  // The full frame and CRC were validated.
-    int currentTemperatureCelsius = 0;
-    bool isDrying = false;
-    int targetTemperatureCelsius = 0;
-    unsigned int targetDurationMinutes = 0;
-    unsigned int remainingTimeSeconds = 0;
-    unsigned int fanSpeedRpm = 0;
-  };
+  using DryerStatus = AceProClient::DryerStatus;
 
   bool setup();
   bool startDrying();
   bool stopDrying();
   bool isConnected() const;
-  Status getStatus();
+
+  // Runs the exchange off the main loop so the display keeps updating.
+  bool requestDryerStatus();
+  bool takeDryerStatus(DryerStatus& dryerStatus);
+  bool requestStop();
+  bool takeStop(bool& stopped);
+  bool isCommandRunning() const;
+  const char* commandPhase() const;
+  unsigned long commandElapsedMs() const;
 
  private:
+  static void _onExecuteJob(AceProJobManager::Job job, void* manager);
+  static const char* _onGetCurrentPhase(void* manager);
+  static void _onIdle(void* manager);
+
+  void _releaseIdleLink();
+
+  void _executeJob(AceProJobManager::Job job);
+  DryerStatus _runDryerStatus();
+  bool _runStop();
+
   Print& _logger;
-  Status _status;
-  bool _usbHostStarted = false;
+  AceProClient _client;
+  AceProJobManager _jobManager;
+  DryerStatus _dryerStatus{};
+  bool _stopResult = false;
 };

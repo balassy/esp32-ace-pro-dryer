@@ -6,25 +6,6 @@
 #include "config.h"
 #include "LogRouter.h"
 
-void RemoteLogger::setConnectionStatusCallback(ConnectionStatusCallback callback) {
-  _connectionStatusCallback = callback;
-}
-
-void RemoteLogger::lock() {
-  if (_lock == nullptr) {
-    _lock = xSemaphoreCreateRecursiveMutex();
-  }
-  if (_lock != nullptr) {
-    xSemaphoreTakeRecursive(_lock, portMAX_DELAY);
-  }
-}
-
-void RemoteLogger::unlock() {
-  if (_lock != nullptr) {
-    xSemaphoreGiveRecursive(_lock);
-  }
-}
-
 bool RemoteLogger::setup() {
   logRouter.print(F("RemoteLogger::setup: Connecting to Wi-Fi SSID \""));
   logRouter.print(WIFI_SSID);
@@ -61,7 +42,8 @@ void RemoteLogger::update() {
   if (!_started) {
     return;
   }
-  lock();
+  
+  _lock();
 
   if (WiFi.status() != WL_CONNECTED) {
     if (_serverStarted) {
@@ -71,7 +53,7 @@ void RemoteLogger::update() {
     for (WiFiClient& client : _clients) {
       client.stop();
     }
-    unlock();
+    _unlock();
     return;
   }
 
@@ -101,7 +83,7 @@ void RemoteLogger::update() {
     }
 
     _clients[slot] = incoming;
-    writeHistory(_clients[slot]);
+    _writeHistory(_clients[slot]);
     logRouter.print(F("RemoteLogger::update: Client connected from "));
     logRouter.println(incoming.remoteIP());
     _clients[slot].println(F("RemoteLogger::update: Welcome! Remote log stream connected."));
@@ -121,14 +103,55 @@ void RemoteLogger::update() {
       client.read();
     }
   }
-  unlock();
+  _unlock();
+}
+
+
+void RemoteLogger::setConnectionStatusCallback(ConnectionStatusCallback callback) {
+  _connectionStatusCallback = callback;
+}
+
+void RemoteLogger::_lock() {
+  if (_mutex == nullptr) {
+    _mutex = xSemaphoreCreateRecursiveMutex();
+  }
+  if (_mutex != nullptr) {
+    xSemaphoreTakeRecursive(_mutex, portMAX_DELAY);
+  }
 }
 
 size_t RemoteLogger::write(uint8_t value) {
   return write(&value, 1);
 }
 
-void RemoteLogger::appendToHistory(const uint8_t* buffer, size_t size) {
+size_t RemoteLogger::write(const uint8_t* buffer, size_t size) {
+  if (buffer == nullptr || size == 0) {
+    return 0;
+  }
+
+  _lock();
+  _appendToHistory(buffer, size);
+
+  bool delivered = false;
+  for (WiFiClient& client : _clients) {
+    if (client.connected() && client.write(buffer, size) == size) {
+      delivered = true;
+    } else if (client) {
+      client.stop();
+    }
+  }
+
+  _unlock();
+  return delivered ? size : 0;
+}
+
+void RemoteLogger::_unlock() {
+  if (_mutex != nullptr) {
+    xSemaphoreGiveRecursive(_mutex);
+  }
+}
+
+void RemoteLogger::_appendToHistory(const uint8_t* buffer, size_t size) {
   for (size_t i = 0; i < size; ++i) {
     const char character = static_cast<char>(buffer[i]);
     if (character == '\r') {
@@ -153,32 +176,11 @@ void RemoteLogger::appendToHistory(const uint8_t* buffer, size_t size) {
   }
 }
 
-void RemoteLogger::writeHistory(WiFiClient& client) {
+void RemoteLogger::_writeHistory(WiFiClient& client) {
   const uint8_t oldestIndex =
       (_messageNext + MAX_MESSAGES - _messageCount) % MAX_MESSAGES;
   for (uint8_t i = 0; i < _messageCount; ++i) {
     const uint8_t index = (oldestIndex + i) % MAX_MESSAGES;
     client.println(_messages[index]);
   }
-}
-
-size_t RemoteLogger::write(const uint8_t* buffer, size_t size) {
-  if (buffer == nullptr || size == 0) {
-    return 0;
-  }
-
-  lock();
-  appendToHistory(buffer, size);
-
-  bool delivered = false;
-  for (WiFiClient& client : _clients) {
-    if (client.connected() && client.write(buffer, size) == size) {
-      delivered = true;
-    } else if (client) {
-      client.stop();
-    }
-  }
-
-  unlock();
-  return delivered ? size : 0;
 }

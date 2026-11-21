@@ -42,7 +42,7 @@ The exact versions of these libraries used to create this code are visible in th
 
 ### Dryer control
 
-The ESP32 starts the USB host at boot and shows the ACE Pro connection state in the right side of the main status bar. The host detects the ACE Pro when it is powered on later or reconnects after a power cycle. Selecting **Start** requests the current ACE Pro status; it does not start drying. If the ACE Pro is disconnected, the request returns unavailable without waiting for reconnection; power on the ACE Pro and try again once the connection indicator shows connected. A **Stop** button is available on the main screen while the status reports that drying is active. Status is not polled automatically.
+The ESP32 starts the USB host at boot and shows the ACE Pro connection state in the right side of the main status bar. If the ACE Pro is already on, the indicator shows connected once enumeration finishes. If it is powered on later, the host detects it and the indicator updates. The ACE Pro drops the USB link after about 3 seconds without traffic. The ESP32 releases the USB host after about 1 second without a command, before that drop can stall the host. Selecting **Start** calls `get_status` only and waits for the response; it does not start drying. When the link is down, that call starts the USB host again and waits for the ACE Pro to enumerate before sending `get_status`. A **Stop** button is available on the main screen while the dryer status reports that drying is active. Status is not polled automatically.
 
 ### Remote logging
 

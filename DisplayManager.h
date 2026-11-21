@@ -16,9 +16,9 @@ class DisplayManager {
   void printTargetTemperature(long value);
 
  private:
-   void drawSpinner();
-   void drawAceProIndicator();
-   void printCenteredMenuButton(const char* text, int x, int width, int y);
+   void _drawSpinner();
+   void _drawAceProIndicator();
+   void _printCenteredMenuButton(const char* text, int x, int width, int y);
 
    static constexpr int SCREEN_WIDTH = 128;       // Width of the display in pixels.
    static constexpr int SCREEN_HEIGHT = 64;       // Height of the display in pixels.
