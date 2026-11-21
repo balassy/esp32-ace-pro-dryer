@@ -53,11 +53,13 @@ void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
     mainPage.setStopButtonVisible(true);
     displayManager.printStatus("Drying");
     displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
+    ledManager.turnOnRed();
   } else {
     aceDryingActive = false;
     mainPage.setStopButtonVisible(false);
     displayManager.printStatus("Ready");
     displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
+    ledManager.turnOnGreen();
   }
 }
 
@@ -122,6 +124,7 @@ void loop() {
       aceDryingActive = true;
       mainPage.setStopButtonVisible(true);
       displayManager.printStatus("Drying");
+      ledManager.turnOnRed();
     } else {
       displayManager.printStatus("Start unconfirmed");
     }
@@ -213,5 +216,9 @@ void onSettingsBackClicked() {
   activatePage(mainPage);
   mainPage.setStopButtonVisible(aceDryingActive);
   displayManager.printStatus("Ready.");
-  ledManager.turnOnGreen();
+  if (aceDryingActive) {
+    ledManager.turnOnRed();
+  } else {
+    ledManager.turnOnGreen();
+  }
 }
