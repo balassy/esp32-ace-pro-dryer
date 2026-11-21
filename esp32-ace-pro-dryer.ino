@@ -43,16 +43,21 @@ bool isAceProConnectedForRemoteLog() {
 }
 
 void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
+  logRouter.print(F("applyDryerStatus: Dryer status: current temp: "));
+  logRouter.println(dryerStatus.currentTemperatureCelsius);
+
   if (!dryerStatus.valid || !dryerStatus.responseComplete) {
     displayManager.printStatus("Status unavailable");
   } else if (dryerStatus.isDrying) {
     aceDryingActive = true;
     mainPage.setStopButtonVisible(true);
     displayManager.printStatus("Drying");
+    displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
   } else {
     aceDryingActive = false;
     mainPage.setStopButtonVisible(false);
     displayManager.printStatus("Ready");
+    displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
   }
 }
 
