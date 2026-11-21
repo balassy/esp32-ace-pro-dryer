@@ -14,6 +14,7 @@ class LogRouter : public Print {
 
  private:
   Print* _output;
+  bool _lineStart = true;
 };
 
 extern LogRouter logRouter;
