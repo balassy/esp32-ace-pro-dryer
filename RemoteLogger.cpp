@@ -10,6 +10,21 @@ void RemoteLogger::setConnectionStatusCallback(ConnectionStatusCallback callback
   _connectionStatusCallback = callback;
 }
 
+void RemoteLogger::lock() {
+  if (_lock == nullptr) {
+    _lock = xSemaphoreCreateRecursiveMutex();
+  }
+  if (_lock != nullptr) {
+    xSemaphoreTakeRecursive(_lock, portMAX_DELAY);
+  }
+}
+
+void RemoteLogger::unlock() {
+  if (_lock != nullptr) {
+    xSemaphoreGiveRecursive(_lock);
+  }
+}
+
 bool RemoteLogger::setup() {
   logRouter.print(F("RemoteLogger::setup: Connecting to Wi-Fi SSID \""));
   logRouter.print(WIFI_SSID);
@@ -46,6 +61,7 @@ void RemoteLogger::update() {
   if (!_started) {
     return;
   }
+  lock();
 
   if (WiFi.status() != WL_CONNECTED) {
     if (_serverStarted) {
@@ -55,6 +71,7 @@ void RemoteLogger::update() {
     for (WiFiClient& client : _clients) {
       client.stop();
     }
+    unlock();
     return;
   }
 
@@ -84,11 +101,12 @@ void RemoteLogger::update() {
     }
 
     _clients[slot] = incoming;
+    writeHistory(_clients[slot]);
     logRouter.print(F("RemoteLogger::update: Client connected from "));
     logRouter.println(incoming.remoteIP());
-    _clients[slot].println(F("Welcome! Remote log stream connected."));
+    _clients[slot].println(F("RemoteLogger::update: Welcome! Remote log stream connected."));
     if (_connectionStatusCallback != nullptr) {
-      _clients[slot].print(F("ACE Pro connection: "));
+      _clients[slot].print(F("RemoteLogger::update: ACE Pro connection status: "));
       _clients[slot].println(_connectionStatusCallback() ? F("connected.") : F("disconnected."));
     }
   }
@@ -103,16 +121,54 @@ void RemoteLogger::update() {
       client.read();
     }
   }
+  unlock();
 }
 
 size_t RemoteLogger::write(uint8_t value) {
   return write(&value, 1);
 }
 
+void RemoteLogger::appendToHistory(const uint8_t* buffer, size_t size) {
+  for (size_t i = 0; i < size; ++i) {
+    const char character = static_cast<char>(buffer[i]);
+    if (character == '\r') {
+      continue;
+    }
+    if (character == '\n') {
+      _pendingMessage[_pendingMessageLength] = '\0';
+      std::strncpy(_messages[_messageNext], _pendingMessage, MAX_MESSAGE_LENGTH);
+      _messages[_messageNext][MAX_MESSAGE_LENGTH - 1] = '\0';
+      _messageNext = (_messageNext + 1) % MAX_MESSAGES;
+      if (_messageCount < MAX_MESSAGES) {
+        ++_messageCount;
+      }
+      _pendingMessageLength = 0;
+      _pendingMessage[0] = '\0';
+      continue;
+    }
+    if (_pendingMessageLength + 1 < MAX_MESSAGE_LENGTH) {
+      _pendingMessage[_pendingMessageLength++] = character;
+      _pendingMessage[_pendingMessageLength] = '\0';
+    }
+  }
+}
+
+void RemoteLogger::writeHistory(WiFiClient& client) {
+  const uint8_t oldestIndex =
+      (_messageNext + MAX_MESSAGES - _messageCount) % MAX_MESSAGES;
+  for (uint8_t i = 0; i < _messageCount; ++i) {
+    const uint8_t index = (oldestIndex + i) % MAX_MESSAGES;
+    client.println(_messages[index]);
+  }
+}
+
 size_t RemoteLogger::write(const uint8_t* buffer, size_t size) {
   if (buffer == nullptr || size == 0) {
     return 0;
   }
+
+  lock();
+  appendToHistory(buffer, size);
 
   bool delivered = false;
   for (WiFiClient& client : _clients) {
@@ -123,5 +179,6 @@ size_t RemoteLogger::write(const uint8_t* buffer, size_t size) {
     }
   }
 
+  unlock();
   return delivered ? size : 0;
 }
