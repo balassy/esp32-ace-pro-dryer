@@ -19,6 +19,8 @@ class AceProManager {
   // Runs the exchange off the main loop so the display keeps updating.
   bool requestDryerStatus();
   bool takeDryerStatus(DryerStatus& dryerStatus);
+  bool requestStart();
+  bool takeStart(bool& started);
   bool requestStop();
   bool takeStop(bool& stopped);
   bool isCommandRunning() const;
@@ -34,11 +36,14 @@ class AceProManager {
 
   void _executeJob(AceProJobManager::Job job);
   DryerStatus _runDryerStatus();
+  bool _runStart();
   bool _runStop();
 
   Print& _logger;
   AceProClient _client;
   AceProJobManager _jobManager;
+
   DryerStatus _dryerStatus{};
   bool _stopResult = false;
+  bool _startResult = false;
 };

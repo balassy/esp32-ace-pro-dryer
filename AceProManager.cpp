@@ -96,7 +96,11 @@ void AceProManager::_executeJob(AceProJobManager::Job job) {
       _logger.println(F("AceProManager::_executeJob: Requesting dryer status..."));
       _dryerStatus = _runDryerStatus();
       break;
-    case AceProJobManager::Job::STOP:
+    case AceProJobManager::Job::START_DRYING:
+      _logger.println(F("AceProManager::_executeJob: Requesting start drying..."));
+      _startResult = _runStart();
+      break;
+    case AceProJobManager::Job::STOP_DRYING:
       _logger.println(F("AceProManager::_executeJob: Requesting stop drying..."));
       _stopResult = _runStop();
       break;
@@ -140,6 +144,20 @@ AceProManager::DryerStatus AceProManager::_runDryerStatus() {
   _logger.print(dryerStatus.fanSpeedRpm);
   _logger.println(F(" RPM"));
   return dryerStatus;
+}
+
+bool AceProManager::_runStart() {
+  const AceProClient::Error result =
+      callWithReconnect(_client, _logger, [this]() { return _client.startDrying(); });
+  if (result != AceProClient::Error::OK) {
+    _logger.print(F("AceProManager::startDrying: Request failed, phase "));
+    _logger.print(_client.getCurrentPhase());
+    _logger.print(F(", phase elapsed "));
+    _logger.print(_client.getPhaseElapsedMs());
+    _logger.println(F(" ms."));
+    return false;
+  }
+  return true;
 }
 
 bool AceProManager::_runStop() {
@@ -188,12 +206,24 @@ bool AceProManager::takeDryerStatus(DryerStatus& dryerStatus) {
   return true;
 }
 
+bool AceProManager::requestStart() {
+  return _jobManager.request(AceProJobManager::Job::START_DRYING);
+}
+
+bool AceProManager::takeStart(bool& started) {
+  if (!_jobManager.take(AceProJobManager::Job::START_DRYING)) {
+    return false;
+  }
+  started = _startResult;
+  return true;
+}
+
 bool AceProManager::requestStop() {
-  return _jobManager.request(AceProJobManager::Job::STOP);
+  return _jobManager.request(AceProJobManager::Job::STOP_DRYING);
 }
 
 bool AceProManager::takeStop(bool& stopped) {
-  if (!_jobManager.take(AceProJobManager::Job::STOP)) {
+  if (!_jobManager.take(AceProJobManager::Job::STOP_DRYING)) {
     return false;
   }
   stopped = _stopResult;

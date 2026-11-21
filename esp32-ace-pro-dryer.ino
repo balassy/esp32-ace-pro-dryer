@@ -116,6 +116,16 @@ void loop() {
   if (aceProManager.takeDryerStatus(dryerStatus)) {
     applyDryerStatus(dryerStatus);
   }
+  bool dryingStarted = false;
+  if (aceProManager.takeStart(dryingStarted)) {
+    if (dryingStarted) {
+      aceDryingActive = true;
+      mainPage.setStopButtonVisible(true);
+      displayManager.printStatus("Drying");
+    } else {
+      displayManager.printStatus("Start unconfirmed");
+    }
+  }
   bool dryingStopped = false;
   if (aceProManager.takeStop(dryingStopped)) {
     if (dryingStopped) {
@@ -125,6 +135,14 @@ void loop() {
       ledManager.turnOnGreen();
     } else {
       displayManager.printStatus("Stop unconfirmed");
+    }
+  }
+
+  static unsigned long lastDryerStatusRequestMs = 0;
+  if (activePage == &mainPage && !aceProManager.isCommandRunning() &&
+      millis() - lastDryerStatusRequestMs >= 10000) {
+    if (aceProManager.requestDryerStatus()) {
+      lastDryerStatusRequestMs = millis();
     }
   }
 
@@ -184,7 +202,7 @@ void onMainStopClicked() {
 
 void onSettingsStartClicked() {
   activatePage(mainPage);
-  if (!aceProManager.requestDryerStatus()) {
+  if (!aceProManager.requestStart()) {
     displayManager.printStatus("Busy");
     return;
   }

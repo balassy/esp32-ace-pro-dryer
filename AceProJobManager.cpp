@@ -62,8 +62,11 @@ void AceProJobManager::_runTask() {
       case Job::DRYER_STATUS:
         _logger.println(F("DRYER_STATUS."));
         break;
-      case Job::STOP:
-        _logger.println(F("STOP."));
+      case Job::START_DRYING:
+        _logger.println(F("START_DRYING."));
+        break;
+      case Job::STOP_DRYING:
+        _logger.println(F("STOP_DRYING."));
         break;
     }
 
@@ -92,8 +95,11 @@ bool AceProJobManager::request(Job job) {
     case Job::DRYER_STATUS:
       _logger.println(F("DRYER_STATUS."));
       break;
-    case Job::STOP:
-      _logger.println(F("STOP."));
+    case Job::START_DRYING:
+      _logger.println(F("START_DRYING."));
+      break;
+    case Job::STOP_DRYING:
+      _logger.println(F("STOP_DRYING."));
       break;
   }
 
