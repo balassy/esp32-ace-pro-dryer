@@ -13,7 +13,7 @@ void AboutPage::activate() {
   _display.clear();
   _display.printStatus("About");
   _menu.activate();
-  _infoRequested = false;
+  _getInfoState = GetInfoState::NOT_REQUESTED;
   logRouter.println(F("AboutPage::activate: Activating About page DONE."));
 }
 
@@ -21,15 +21,6 @@ void AboutPage::deactivate() {
   _menu.deactivate();
 }
 
-void AboutPage::showDryerInfo(const char* model, const char* firmware, const char* bootFirmware) {
-  logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info..."));
-  if (model == nullptr || model[0] == '\0') {
-    _display.printInfoMessage("Disconnected");
-    return;
-  }
-  _display.printDryerInfo(model, firmware, bootFirmware);
-  logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info DONE."));
-}
 
 void AboutPage::onKnobTurned(long value) {
   _menu.onKnobTurned(value);
@@ -40,18 +31,64 @@ void AboutPage::onKnobClicked() {
 }
 
 void AboutPage::loop() {
-  if (!_infoRequested && _getInfo()) {
-    logRouter.println(F("AboutPage::loop: Dryer info requested."));
-    _display.printInfoMessage("Reading...");
+  switch (_getInfoState) {
+    case GetInfoState::NOT_REQUESTED: {
+      logRouter.println(F("AboutPage::loop: Requesting dryer info..."));
+
+      _display.printInfoMessage("Connecting...");
+
+      AboutPage::GetInfoResult result = _getInfo();
+      switch (result)
+      {
+        case GetInfoResult::OK:
+          logRouter.println(F("AboutPage::loop: Requesting dryer info DONE."));
+          break;
+
+        case GetInfoResult::ERROR:
+          logRouter.println(F("AboutPage::loop: ERROR: Failed to request dryer info."));
+          _display.printInfoMessage("Unknown error :("); // TODO: SPecifically handle the Disconnected case.
+          break;
+
+        default:
+          logRouter.println(F("AboutPage::loop: ERROR: Unknown result from _getInfo()."));
+          break;
+      }
+      _getInfoState = GetInfoState::REQUESTED;
+      break;
+    }
+
+    case GetInfoState::REQUESTED: {
+      AceProManager::DryerInfo dryerInfo;
+      if (_aceProManager.takeDryerInfo(dryerInfo)) {
+        _getInfoState = GetInfoState::RECEIVED;
+        _showDryerInfo(dryerInfo.model, dryerInfo.firmware, dryerInfo.bootFirmware);
+      }
+      break;
+    }
+
+    case GetInfoState::RECEIVED:
+      break;
   }
 
   _menu.loop();
 }
 
-bool AboutPage::_getInfo() {
+AboutPage::GetInfoResult AboutPage::_getInfo() {
+  _getInfoState = GetInfoState::REQUESTED;
   if (!_aceProManager.requestDryerInfo()) {
-    return false;
+    return GetInfoResult::ERROR;
   }
-  _infoRequested = true;
-  return true;
+  return GetInfoResult::OK;
+}
+
+void AboutPage::_showDryerInfo(const char* model, const char* firmware, const char* bootFirmware) {
+  logRouter.print(F("AboutPage::showDryerInfo: Displaying dryer info..."));
+
+  if (model == nullptr || model[0] == '\0') {
+    _display.printInfoMessage("Disconnected");
+    return;
+  }
+  _display.printDryerInfo(model, firmware, bootFirmware);
+
+  logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info DONE."));
 }

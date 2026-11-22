@@ -119,23 +119,11 @@ void loop() {
     displayManager.setAceProConnected(aceConnected);
   }
 
-  AceProManager::DryerInfo dryerInfo;
-  if (aceProManager.takeDryerInfo(dryerInfo)) {
-    logRouter.print(F("loop: Dryer info: model "));
-    logRouter.print(dryerInfo.model);
-    logRouter.print(F(", firmware "));
-    logRouter.print(dryerInfo.firmware);
-    logRouter.print(F(", boot firmware "));
-    logRouter.println(dryerInfo.bootFirmware);
-    if (activePage == &aboutPage) {
-      aboutPage.showDryerInfo(dryerInfo.model, dryerInfo.firmware, dryerInfo.bootFirmware);
-    }
-  }
-
   AceProManager::DryerStatus dryerStatus;
   if (aceProManager.takeDryerStatus(dryerStatus)) {
     applyDryerStatus(dryerStatus);
   }
+
   bool dryingStarted = false;
   if (aceProManager.takeStart(dryingStarted)) {
     if (dryingStarted) {
@@ -209,6 +197,14 @@ void activatePage(Page& page) {
   }
   activePage = &page;
   activePage->activate();
+
+  // Updating the heating status when navigating back to the main page.
+  if(activePage == &mainPage) {
+    displayManager.printStatus("Checking ACE Pro...");
+    if (!aceProManager.requestDryerStatus()) {
+      displayManager.printStatus("Busy");
+    }
+  }
 }
 
 void onMainSettingsClicked() {
@@ -221,16 +217,7 @@ void onMainAboutClicked() {
 }
 
 void onAboutBackClicked() {
-  aboutPage.deactivate();
   activatePage(mainPage);
-  mainPage.setDrying(aceDryingActive);
-  if (aceDryingActive) {
-    displayManager.printStatus("Drying");
-    ledManager.turnOnRed();
-  } else {
-    displayManager.printStatus("Ready.");
-    ledManager.turnOnGreen();
-  }
 }
 
 void onMainStopClicked() {

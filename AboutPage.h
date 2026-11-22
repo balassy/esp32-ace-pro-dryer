@@ -10,15 +10,19 @@ class AboutPage : public Page {
 
   void activate() override;
   void deactivate() override;
-  void showDryerInfo(const char* model, const char* firmware, const char* bootFirmware);
   void onKnobTurned(long value) override;
   void onKnobClicked() override;
   void loop() override;
 
  private:
+  enum class GetInfoResult : uint8_t { OK, ERROR };
+  enum class GetInfoState : uint8_t { NOT_REQUESTED, REQUESTED, RECEIVED };
+
   Menu _menu;
   AceProManager& _aceProManager;
 
-  bool _getInfo();
-  bool _infoRequested = false;
+  GetInfoResult _getInfo();
+  GetInfoState _getInfoState = GetInfoState::NOT_REQUESTED;
+
+  void _showDryerInfo(const char* model, const char* firmware, const char* bootFirmware);
 };
