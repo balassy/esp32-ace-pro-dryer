@@ -8,7 +8,7 @@
 #define DONT_CIRCLE_VALUES false
 
 KnobManager::KnobManager()
-    : _encoder(ENCODER_B_DT_PIN, ENCODER_A_CLK_PIN, ENCODER_SW_PIN, ENCODER_VCC_PIN) {}
+    : _encoder(ENCODER_A_CLK_PIN, ENCODER_B_DT_PIN, ENCODER_SW_PIN, ENCODER_VCC_PIN) {}
 
 void KnobManager::setup(TurnCallback turnCallback, ClickCallback clickCallback) {
   logRouter.println(F("KnobManager::setup: Initializing knob..."));
