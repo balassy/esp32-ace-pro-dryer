@@ -197,14 +197,6 @@ void activatePage(Page& page) {
   }
   activePage = &page;
   activePage->activate();
-
-  // Updating the heating status when navigating back to the main page.
-  if(activePage == &mainPage) {
-    displayManager.printStatus("Checking ACE Pro...");
-    if (!aceProManager.requestDryerStatus()) {
-      displayManager.printStatus("Busy");
-    }
-  }
 }
 
 void onMainSettingsClicked() {
@@ -218,6 +210,12 @@ void onMainAboutClicked() {
 
 void onAboutBackClicked() {
   activatePage(mainPage);
+
+  // Updating the heating status when navigating back to the main page.
+  displayManager.printStatus("Checking ACE Pro...");
+  if (!aceProManager.requestDryerStatus()) {
+    displayManager.printStatus("Busy");
+  }
 }
 
 void onMainStopClicked() {
@@ -230,7 +228,6 @@ void onMainStopClicked() {
 }
 
 void onSettingsStartClicked() {
-  settingsPage.deactivate();
   activatePage(mainPage);
   if (!aceProManager.requestStart()) {
     displayManager.printStatus("Busy");
