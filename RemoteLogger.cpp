@@ -62,9 +62,12 @@ void RemoteLogger::update() {
     _server.setNoDelay(true);
     _serverStarted = true;
 
+    const IPAddress address = WiFi.localIP();
+    _unlock();
     logRouter.print(F("RemoteLogger::update: Listening at "));
-    logRouter.print(WiFi.localIP());
+    logRouter.print(address);
     logRouter.println(F(":23"));
+    _lock();
   }
 
   for (uint8_t accepted = 0; accepted < MAX_CLIENTS && _server.hasClient(); ++accepted) {
@@ -84,8 +87,11 @@ void RemoteLogger::update() {
 
     _clients[slot] = incoming;
     _writeHistory(_clients[slot]);
+    const IPAddress remoteAddress = incoming.remoteIP();
+    _unlock();
     logRouter.print(F("RemoteLogger::update: Client connected from "));
-    logRouter.println(incoming.remoteIP());
+    logRouter.println(remoteAddress);
+    _lock();
     _clients[slot].println(F("RemoteLogger::update: Welcome! Remote log stream connected."));
     if (_connectionStatusCallback != nullptr) {
       _clients[slot].print(F("RemoteLogger::update: ACE Pro connection status: "));

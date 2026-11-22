@@ -12,6 +12,26 @@ void LogRouter::flush() {
   _output->flush();
 }
 
+void LogRouter::_beginLine() {
+  if (_lineTask == xTaskGetCurrentTaskHandle()) {
+    return;
+  }
+  if (_mutex == nullptr) {
+    _mutex = xSemaphoreCreateRecursiveMutex();
+  }
+  if (_mutex != nullptr) {
+    xSemaphoreTakeRecursive(_mutex, portMAX_DELAY);
+  }
+  _lineTask = xTaskGetCurrentTaskHandle();
+}
+
+void LogRouter::_endLine() {
+  _lineTask = nullptr;
+  if (_mutex != nullptr) {
+    xSemaphoreGiveRecursive(_mutex);
+  }
+}
+
 size_t LogRouter::write(uint8_t value) {
   return write(&value, 1);
 }
@@ -21,12 +41,15 @@ size_t LogRouter::write(const uint8_t* buffer, size_t size) {
     return 0;
   }
 
+  _beginLine();
   size_t accepted = 0;
   size_t offset = 0;
   while (offset < size) {
     if (_lineStart) {
       while (offset < size && buffer[offset] == '\r') {
         if (_output->write(buffer[offset]) != 1) {
+          _endLine();
+          _lineStart = true;
           return accepted;
         }
         ++accepted;
@@ -57,9 +80,17 @@ size_t LogRouter::write(const uint8_t* buffer, size_t size) {
     const size_t written = _output->write(buffer + offset, chunkLength);
     accepted += written;
     if (written != chunkLength) {
+      _endLine();
+      _lineStart = true;
       return accepted;
     }
-    _lineStart = buffer[end - 1] == '\n';
+    if (buffer[end - 1] == '\n') {
+      _lineStart = true;
+      _endLine();
+      if (offset + chunkLength < size) {
+        _beginLine();
+      }
+    }
     offset = end;
   }
   return accepted;
