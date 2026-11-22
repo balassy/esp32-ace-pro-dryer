@@ -12,6 +12,10 @@ void SettingsPage::activate() {
   _menu.activate();
 }
 
+void SettingsPage::deactivate() {
+  _menu.deactivate();
+}
+
 void SettingsPage::onKnobTurned(long value) {
   _menu.onKnobTurned(value);
 }

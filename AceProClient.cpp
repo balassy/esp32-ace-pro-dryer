@@ -360,6 +360,31 @@ void logOperation(Print& logger, const char* operation, const __FlashStringHelpe
   logger.println(message);
 }
 
+void logResponseJson(Print& logger, const char* operation, const char* json) {
+  // LogRouter adds "mm:ss " and RemoteLogger keeps 191 characters per history line.
+  constexpr size_t lineBudget = 185;
+  const size_t prefixLength = strlen("AceProClient::") + strlen(operation) + strlen(": Response JSON: ");
+  const size_t chunkLength = prefixLength < lineBudget ? lineBudget - prefixLength : 32;
+  const size_t jsonLength = json == nullptr ? 0 : strlen(json);
+
+  for (size_t offset = 0; offset < jsonLength || offset == 0; offset += chunkLength) {
+    logger.print(F("AceProClient::"));
+    logger.print(operation);
+    logger.print(F(": Response JSON: "));
+    const size_t remaining = jsonLength - offset;
+    const size_t count = remaining < chunkLength ? remaining : chunkLength;
+    if (count == 0) {
+      logger.println();
+      break;
+    }
+    logger.write(reinterpret_cast<const uint8_t*>(json + offset), count);
+    logger.println();
+    if (offset + count >= jsonLength) {
+      break;
+    }
+  }
+}
+
 bool waitForConnection(unsigned long timeoutMs) {
   const unsigned long startTime = millis();
   while (millis() - startTime < timeoutMs) {
@@ -596,6 +621,7 @@ AceProClient::Error exchangeAceProCommand(Print& logger,
 
   responsePayload[responseLength] = '\0';
   const char* responseJson = reinterpret_cast<const char*>(responsePayload);
+  logResponseJson(logger, operation, responseJson);
   long responseId = -1;
   long responseCode = 0;
   if (!getJsonIntegerField(responseJson, "id", responseId) || responseId != requestId) {
@@ -720,12 +746,12 @@ void AceProClient::release() {
   if (!aceUsbHost.ready() && !aceProConnected) {
     return;
   }
-  _logger.println(F("AceProClient::release: Releasing the ACE Pro USB host."));
+  _logger.println(F("AceProClient::release: Releasing the ACE Pro USB host..."));
   setPhase("idle");
   aceProConnected = false;
   aceProUsbSerial.end();
   aceUsbHost.end();
-  _logger.println(F("AceProClient::release: ACE Pro USB host released."));
+  _logger.println(F("AceProClient::release: Releasing the ACE Pro USB host DONE."));
 }
 
 unsigned long AceProClient::millisecondsSinceActivity() const {
@@ -742,6 +768,34 @@ const char* AceProClient::getCurrentPhase() const {
 
 unsigned long AceProClient::getPhaseElapsedMs() const {
   return millis() - commandPhaseStartedMs;
+}
+
+AceProClient::Error AceProClient::getDryerInfo(DryerInfo& dryerInfo) {
+  dryerInfo = DryerInfo{};
+  size_t responseLength = 0;
+  const Error error = sendAceProMethod(_logger, "get_info", nullptr, "getDryerInfo",
+                                       "get_info request.", responseLength);
+  if (error != Error::OK) {
+    return error;
+  }
+
+  char* responseJson = reinterpret_cast<char*>(responsePayload);
+  char* infoJson = nullptr;
+  if (!getJsonObjectField(responseJson, "result", infoJson)) {
+    _logger.println(F("AceProClient::getDryerInfo: ERROR: Response has no result object."));
+    dryerInfo = DryerInfo{};
+    return Error::INVALID_RESPONSE;
+  }
+
+  if (!getJsonStringField(infoJson, "model", dryerInfo.model, sizeof(dryerInfo.model)) ||
+      !getJsonStringField(infoJson, "firmware", dryerInfo.firmware, sizeof(dryerInfo.firmware)) ||
+      !getJsonStringField(infoJson, "boot_firmware", dryerInfo.bootFirmware, sizeof(dryerInfo.bootFirmware))) {
+    _logger.println(F("AceProClient::getDryerInfo: ERROR: Response is missing model, firmware, or boot_firmware."));
+    dryerInfo = DryerInfo{};
+    return Error::INVALID_RESPONSE;
+  }
+
+  return Error::OK;
 }
 
 AceProClient::Error AceProClient::getDryerStatus(DryerStatus& dryerStatus) {

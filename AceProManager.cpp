@@ -23,7 +23,7 @@ AceProClient::Error callWithReconnect(AceProClient& client, Print& logger, Comma
   logger.println(F("AceProManager::callWithReconnect: Sending the command."));
   AceProClient::Error result = command();
   if (result == AceProClient::Error::NOT_CONNECTED || result == AceProClient::Error::TIMEOUT) {
-    logger.println(F("AceProManager::callWithReconnect: Command did not complete because timeout or disconnection. Restarting USB and resending once."));
+    logger.println(F("AceProManager::callWithReconnect: ERROR: Command did not complete because timeout or disconnection. Restarting USB and resending once."));
     if (client.reopen(USB_RECONNECT_TIMEOUT_MS) != AceProClient::Error::OK) {
       logger.println(F("AceProManager::callWithReconnect: ERROR: Failed to rebuild the ACE Pro connection."));
       client.release();
@@ -33,6 +33,7 @@ AceProClient::Error callWithReconnect(AceProClient& client, Print& logger, Comma
   }
   // The dryer drops USB after a few idle seconds and the host task then blocks
   // inside the next write. Drop the host while it is still healthy.
+  logger.println(F("AceProManager::callWithReconnect: Releasing the USB host after the command."));
   client.release();
   return result;
 }
@@ -92,6 +93,10 @@ void AceProManager::_executeJob(AceProJobManager::Job job) {
     case AceProJobManager::Job::NONE:
       _logger.println(F("AceProManager::_executeJob: No job requested."));
       return;
+    case AceProJobManager::Job::GET_DRYER_INFO:
+      _logger.println(F("AceProManager::_executeJob: Requesting dryer info..."));
+      _dryerInfo = _runDryerInfo();
+      break;
     case AceProJobManager::Job::DRYER_STATUS:
       _logger.println(F("AceProManager::_executeJob: Requesting dryer status..."));
       _dryerStatus = _runDryerStatus();
@@ -107,18 +112,46 @@ void AceProManager::_executeJob(AceProJobManager::Job job) {
   }
 }
 
+AceProManager::DryerInfo AceProManager::_runDryerInfo() {
+  DryerInfo dryerInfo;
+  const AceProClient::Error result = callWithReconnect(
+      _client, _logger, [this, &dryerInfo]() { return _client.getDryerInfo(dryerInfo); });
+
+  if (result == AceProClient::Error::NOT_CONNECTED) {
+    _logger.println(F("AceProManager::_runDryerInfo: ERROR: ACE Pro is not connected."));
+    return DryerInfo{};
+  }
+
+  if (result != AceProClient::Error::OK) {
+    _logger.print(F("AceProManager::_runDryerInfo: ERROR: Request failed, phase "));
+    _logger.print(_client.getCurrentPhase());
+    _logger.print(F(", phase elapsed "));
+    _logger.print(_client.getPhaseElapsedMs());
+    _logger.println(F(" ms."));
+    return DryerInfo{};
+  }
+
+  _logger.print(F("AceProManager::_runDryerInfo: Model: "));
+  _logger.println(dryerInfo.model);
+  _logger.print(F("AceProManager::_runDryerInfo: Firmware: "));
+  _logger.println(dryerInfo.firmware);
+  _logger.print(F("AceProManager::_runDryerInfo: Boot firmware: "));
+  _logger.println(dryerInfo.bootFirmware);
+  return dryerInfo;
+}
+
 AceProManager::DryerStatus AceProManager::_runDryerStatus() {
   DryerStatus dryerStatus;
   const AceProClient::Error result = callWithReconnect(
       _client, _logger, [this, &dryerStatus]() { return _client.getDryerStatus(dryerStatus); });
 
   if (result == AceProClient::Error::NOT_CONNECTED) {
-    _logger.println(F("AceProManager::getDryerStatus: ACE Pro is not connected."));
+    _logger.println(F("AceProManager::_runDryerStatus: ERROR: ACE Pro is not connected."));
     return DryerStatus{};
   }
 
   if (result != AceProClient::Error::OK) {
-    _logger.print(F("AceProManager::getDryerStatus: Request failed, phase "));
+    _logger.print(F("AceProManager::_runDryerStatus: ERROR: Request failed, phase "));
     _logger.print(_client.getCurrentPhase());
     _logger.print(F(", phase elapsed "));
     _logger.print(_client.getPhaseElapsedMs());
@@ -126,21 +159,21 @@ AceProManager::DryerStatus AceProManager::_runDryerStatus() {
     return DryerStatus{};
   }
 
-  _logger.print(F("AceProManager::getDryerStatus: Current temperature: "));
+  _logger.print(F("AceProManager::_runDryerStatus: Current temperature: "));
   _logger.print(dryerStatus.currentTemperatureCelsius);
   _logger.println(F(" C"));
-  _logger.print(F("AceProManager::getDryerStatus: Dryer status: "));
+  _logger.print(F("AceProManager::_runDryerStatus: Dryer status: "));
   _logger.println(dryerStatus.isDrying ? F("drying") : F("stop"));
-  _logger.print(F("AceProManager::getDryerStatus: Target temperature: "));
+  _logger.print(F("AceProManager::_runDryerStatus: Target temperature: "));
   _logger.print(dryerStatus.targetTemperatureCelsius);
   _logger.println(F(" C"));
-  _logger.print(F("AceProManager::getDryerStatus: Duration: "));
+  _logger.print(F("AceProManager::_runDryerStatus: Duration: "));
   _logger.print(dryerStatus.targetDurationMinutes);
   _logger.println(F(" minutes"));
-  _logger.print(F("AceProManager::getDryerStatus: Remaining time: "));
+  _logger.print(F("AceProManager::_runDryerStatus: Remaining time: "));
   _logger.print(dryerStatus.remainingTimeSeconds);
   _logger.println(F(" seconds"));
-  _logger.print(F("AceProManager::getDryerStatus: Fan speed: "));
+  _logger.print(F("AceProManager::_runDryerStatus: Fan speed: "));
   _logger.print(dryerStatus.fanSpeedRpm);
   _logger.println(F(" RPM"));
   return dryerStatus;
@@ -150,7 +183,7 @@ bool AceProManager::_runStart() {
   const AceProClient::Error result =
       callWithReconnect(_client, _logger, [this]() { return _client.startDrying(); });
   if (result != AceProClient::Error::OK) {
-    _logger.print(F("AceProManager::startDrying: Request failed, phase "));
+    _logger.print(F("AceProManager::_runStart: ERROR: Request failed, phase "));
     _logger.print(_client.getCurrentPhase());
     _logger.print(F(", phase elapsed "));
     _logger.print(_client.getPhaseElapsedMs());
@@ -164,7 +197,7 @@ bool AceProManager::_runStop() {
   const AceProClient::Error result =
       callWithReconnect(_client, _logger, [this]() { return _client.stopDrying(); });
   if (result != AceProClient::Error::OK) {
-    _logger.print(F("AceProManager::stopDrying: Request failed, phase "));
+    _logger.print(F("AceProManager::_runStop: ERROR: Request failed, phase "));
     _logger.print(_client.getCurrentPhase());
     _logger.print(F(", phase elapsed "));
     _logger.print(_client.getPhaseElapsedMs());
@@ -193,6 +226,18 @@ bool AceProManager::stopDrying() {
 // AceProManager::DryerStatus AceProManager::getDryerStatus() {
 //   return _runDryerStatus();
 // }
+
+bool AceProManager::requestDryerInfo() {
+  return _jobManager.request(AceProJobManager::Job::GET_DRYER_INFO);
+}
+
+bool AceProManager::takeDryerInfo(DryerInfo& dryerInfo) {
+  if (!_jobManager.take(AceProJobManager::Job::GET_DRYER_INFO)) {
+    return false;
+  }
+  dryerInfo = _dryerInfo;
+  return true;
+}
 
 bool AceProManager::requestDryerStatus() {
   return _jobManager.request(AceProJobManager::Job::DRYER_STATUS);

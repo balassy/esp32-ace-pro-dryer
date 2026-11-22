@@ -11,11 +11,25 @@ Menu::Menu(DisplayManager& display, KnobManager& knob, const char* primaryText,
       _secondaryText(secondaryText),
       _secondaryCallback(secondaryCallback) {}
 
+void Menu::deactivate() {
+  _isActive.store(false);
+}
+
 void Menu::activate() {
   _isActive.store(true);
   _primarySelected = true;
   const bool hasSecondaryButton = _secondaryText != nullptr;
   _knob.configure(0, hasSecondaryButton ? 1 : 0, 1, 0);
+  _display.printMenuButtons(_primaryText, _secondaryText, _primarySelected);
+}
+
+void Menu::setPrimaryButton(const char* text, ClickCallback callback) {
+  _primaryText = text;
+  _primaryCallback = callback;
+  if (!_isActive.load()) {
+    return;
+  }
+
   _display.printMenuButtons(_primaryText, _secondaryText, _primarySelected);
 }
 

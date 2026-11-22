@@ -9,6 +9,7 @@ class SettingsPage : public Page {
                Menu::ClickCallback backCallback);
 
   void activate() override;
+  void deactivate() override;
   void onKnobTurned(long value) override;
   void onKnobClicked() override;
   void loop() override;

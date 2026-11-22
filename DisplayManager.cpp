@@ -98,7 +98,22 @@ void DisplayManager::printMenuButtons(const char* primaryText,
                                       const char* secondaryText,
                                       bool primarySelected) {
   constexpr int menuBarY = SCREEN_HEIGHT - MENU_BAR_HEIGHT;
-  constexpr int buttonWidth = SCREEN_WIDTH / 2;
+  if (secondaryText == nullptr) {
+    _display.setFont(nullptr);
+    _display.setTextSize(1);
+    _display.fillRect(0, menuBarY, SCREEN_WIDTH, MENU_BAR_HEIGHT, SSD1306_BLACK);
+    _display.drawFastHLine(0, menuBarY, SCREEN_WIDTH, SSD1306_WHITE);
+    _display.fillRect(0, menuBarY + 1, SCREEN_WIDTH, MENU_BAR_HEIGHT - 1, SSD1306_WHITE);
+    _display.setTextColor(SSD1306_BLACK);
+    _printCenteredMenuButton(primaryText, 0, SCREEN_WIDTH, menuBarY);
+    _display.display();
+    return;
+  }
+
+  const int primaryTextWidth = static_cast<int>(strlen(primaryText)) * DEFAULT_CHAR_WIDTH;
+  const int secondaryTextWidth = static_cast<int>(strlen(secondaryText)) * DEFAULT_CHAR_WIDTH;
+  const int extraWidth = SCREEN_WIDTH - primaryTextWidth - secondaryTextWidth;
+  const int buttonWidth = extraWidth > 0 ? primaryTextWidth + extraWidth / 2 : SCREEN_WIDTH / 2;
   const uint16_t primaryBackground = primarySelected ? SSD1306_WHITE : SSD1306_BLACK;
   const uint16_t primaryForeground = primarySelected ? SSD1306_BLACK : SSD1306_WHITE;
   const uint16_t secondaryBackground = primarySelected ? SSD1306_BLACK : SSD1306_WHITE;
@@ -132,6 +147,74 @@ void DisplayManager::_printCenteredMenuButton(const char* text, int x, int width
   const int textY = y + (MENU_BAR_HEIGHT - DEFAULT_CHAR_HEIGHT) / 2;
   _display.setCursor(textX, textY);
   _display.print(text);
+}
+
+void DisplayManager::_clearContent() {
+  _display.fillRect(0, STATUS_BAR_HEIGHT, SCREEN_WIDTH,
+                    SCREEN_HEIGHT - STATUS_BAR_HEIGHT - MENU_BAR_HEIGHT, SSD1306_BLACK);
+}
+
+int DisplayManager::_printWrappedText(const char* text, int y, int maxY) {
+  if (text == nullptr) {
+    return y;
+  }
+
+  const int maxChars = SCREEN_WIDTH / DEFAULT_CHAR_WIDTH;
+  const size_t length = strlen(text);
+  size_t offset = 0;
+  while (offset < length && y + DEFAULT_CHAR_HEIGHT <= maxY) {
+    size_t count = length - offset;
+    if (count > static_cast<size_t>(maxChars)) {
+      count = static_cast<size_t>(maxChars);
+    }
+    _display.setCursor(0, y);
+    for (size_t index = 0; index < count; ++index) {
+      _display.write(text[offset + index]);
+    }
+    offset += count;
+    y += DEFAULT_CHAR_HEIGHT;
+  }
+  return y;
+}
+
+void DisplayManager::printInfoMessage(const char* text) {
+  _clearContent();
+  _display.setFont(nullptr);
+  _display.setTextSize(1);
+  _display.setTextColor(SSD1306_WHITE);
+
+  const int textWidth = text == nullptr ? 0 : static_cast<int>(strlen(text)) * DEFAULT_CHAR_WIDTH - 1;
+  const int contentTop = STATUS_BAR_HEIGHT;
+  const int contentHeight = SCREEN_HEIGHT - STATUS_BAR_HEIGHT - MENU_BAR_HEIGHT;
+  const int x = (SCREEN_WIDTH - textWidth) / 2;
+  const int y = contentTop + (contentHeight - DEFAULT_CHAR_HEIGHT) / 2;
+  _display.setCursor(x, y);
+  _display.print(text);
+  _display.display();
+}
+
+void DisplayManager::printDryerInfo(const char* model, const char* firmware, const char* bootFirmware) {
+  _clearContent();
+  _display.setFont(nullptr);
+  _display.setTextSize(1);
+  _display.setTextColor(SSD1306_WHITE);
+
+  const int contentBottom = SCREEN_HEIGHT - MENU_BAR_HEIGHT;
+  int y = _printWrappedText(model, STATUS_BAR_HEIGHT + 2, contentBottom);
+  y++;
+  if (y + DEFAULT_CHAR_HEIGHT <= contentBottom) {
+    _display.setCursor(0, y);
+    _display.print(F("Firmware: "));
+    _display.print(firmware);
+    y += DEFAULT_CHAR_HEIGHT;
+  }
+  y++;
+  if (y + DEFAULT_CHAR_HEIGHT <= contentBottom) {
+    _display.setCursor(0, y);
+    _display.print(F("Boot fw.: "));
+    _display.print(bootFirmware);
+  }
+  _display.display();
 }
 
 void DisplayManager::updateSpinner() {

@@ -9,7 +9,7 @@
 // One ACE Pro command at a time, running off the main loop.
 class AceProJobManager {
  public:
-  enum class Job : uint8_t { NONE, DRYER_STATUS, START_DRYING, STOP_DRYING };
+  enum class Job : uint8_t { NONE, GET_DRYER_INFO, DRYER_STATUS, START_DRYING, STOP_DRYING };
 
   using OnExecuteJobCallback = void (*)(Job job, void* manager);
   using OnGetCurrentPhaseCallback = const char* (*)(void* context);

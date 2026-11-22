@@ -5,6 +5,7 @@
 #include "config.h"
 
 // Project classes.
+#include "AboutPage.h"
 #include "AceProManager.h"
 #include "DisplayManager.h"
 #include "KnobManager.h"
@@ -18,11 +19,14 @@
 void onKnobTurned(long value);
 void onKnobClicked(unsigned long duration);
 void onMainSettingsClicked();
+void onMainAboutClicked();
 void onMainStopClicked();
+void onAboutBackClicked();
 void onSettingsStartClicked();
 void onSettingsBackClicked();
 void activatePage(Page& page);
 bool isAceProConnectedForRemoteLog();
+bool requestDryerInfoForAboutPage();
 
 DisplayManager displayManager;
 KnobManager knobManager;
@@ -31,7 +35,9 @@ LogRouter logRouter(Serial);
 RemoteLogger remoteLogger;
 AceProManager aceProManager(logRouter);
 
-MainPage mainPage(displayManager, knobManager, onMainSettingsClicked, onMainStopClicked);
+MainPage mainPage(displayManager, knobManager, onMainSettingsClicked, onMainStopClicked,
+                  onMainAboutClicked);
+AboutPage aboutPage(displayManager, knobManager, onAboutBackClicked, requestDryerInfoForAboutPage);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
 Page* activePage = nullptr;
 
@@ -42,6 +48,10 @@ bool isAceProConnectedForRemoteLog() {
   return aceProManager.isConnected();
 }
 
+bool requestDryerInfoForAboutPage() {
+  return aceProManager.requestDryerInfo();
+}
+
 void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
   logRouter.print(F("applyDryerStatus: Dryer status: current temp: "));
   logRouter.println(dryerStatus.currentTemperatureCelsius);
@@ -50,13 +60,13 @@ void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
     displayManager.printStatus("Status unavailable");
   } else if (dryerStatus.isDrying) {
     aceDryingActive = true;
-    mainPage.setStopButtonVisible(true);
+    mainPage.setDrying(true);
     displayManager.printStatus("Drying");
     displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
     ledManager.turnOnRed();
   } else {
     aceDryingActive = false;
-    mainPage.setStopButtonVisible(false);
+    mainPage.setDrying(false);
     displayManager.printStatus("Ready");
     displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
     ledManager.turnOnGreen();
@@ -114,6 +124,19 @@ void loop() {
     displayManager.setAceProConnected(aceConnected);
   }
 
+  AceProManager::DryerInfo dryerInfo;
+  if (aceProManager.takeDryerInfo(dryerInfo)) {
+    logRouter.print(F("loop: Dryer info: model "));
+    logRouter.print(dryerInfo.model);
+    logRouter.print(F(", firmware "));
+    logRouter.print(dryerInfo.firmware);
+    logRouter.print(F(", boot firmware "));
+    logRouter.println(dryerInfo.bootFirmware);
+    if (activePage == &aboutPage) {
+      aboutPage.showDryerInfo(dryerInfo.model, dryerInfo.firmware, dryerInfo.bootFirmware);
+    }
+  }
+
   AceProManager::DryerStatus dryerStatus;
   if (aceProManager.takeDryerStatus(dryerStatus)) {
     applyDryerStatus(dryerStatus);
@@ -122,7 +145,7 @@ void loop() {
   if (aceProManager.takeStart(dryingStarted)) {
     if (dryingStarted) {
       aceDryingActive = true;
-      mainPage.setStopButtonVisible(true);
+      mainPage.setDrying(true);
       displayManager.printStatus("Drying");
       ledManager.turnOnRed();
     } else {
@@ -133,7 +156,7 @@ void loop() {
   if (aceProManager.takeStop(dryingStopped)) {
     if (dryingStopped) {
       aceDryingActive = false;
-      mainPage.setStopButtonVisible(false);
+      mainPage.setDrying(false);
       displayManager.printStatus("Drying stopped");
       ledManager.turnOnGreen();
     } else {
@@ -186,12 +209,33 @@ void onKnobClicked(unsigned long duration) {
 // ------------------------------ Page navigation handlers -----------------------
 
 void activatePage(Page& page) {
+  if (activePage != nullptr) {
+    activePage->deactivate();
+  }
   activePage = &page;
   activePage->activate();
 }
 
 void onMainSettingsClicked() {
+  mainPage.deactivate();
   activatePage(settingsPage);
+}
+
+void onMainAboutClicked() {
+  activatePage(aboutPage);
+}
+
+void onAboutBackClicked() {
+  aboutPage.deactivate();
+  activatePage(mainPage);
+  mainPage.setDrying(aceDryingActive);
+  if (aceDryingActive) {
+    displayManager.printStatus("Drying");
+    ledManager.turnOnRed();
+  } else {
+    displayManager.printStatus("Ready.");
+    ledManager.turnOnGreen();
+  }
 }
 
 void onMainStopClicked() {
@@ -204,6 +248,7 @@ void onMainStopClicked() {
 }
 
 void onSettingsStartClicked() {
+  settingsPage.deactivate();
   activatePage(mainPage);
   if (!aceProManager.requestStart()) {
     displayManager.printStatus("Busy");
@@ -213,8 +258,9 @@ void onSettingsStartClicked() {
 }
 
 void onSettingsBackClicked() {
+  settingsPage.deactivate();
   activatePage(mainPage);
-  mainPage.setStopButtonVisible(aceDryingActive);
+  mainPage.setDrying(aceDryingActive);
   displayManager.printStatus("Ready.");
   if (aceDryingActive) {
     ledManager.turnOnRed();

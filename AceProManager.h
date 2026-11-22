@@ -10,6 +10,7 @@ class AceProManager {
   explicit AceProManager(Print& logger);
 
   using DryerStatus = AceProClient::DryerStatus;
+  using DryerInfo = AceProClient::DryerInfo;
 
   bool setup();
   bool startDrying();
@@ -17,10 +18,15 @@ class AceProManager {
   bool isConnected() const;
 
   // Runs the exchange off the main loop so the display keeps updating.
+  bool requestDryerInfo();
+  bool takeDryerInfo(DryerInfo& dryerInfo);
+
   bool requestDryerStatus();
   bool takeDryerStatus(DryerStatus& dryerStatus);
+
   bool requestStart();
   bool takeStart(bool& started);
+
   bool requestStop();
   bool takeStop(bool& stopped);
   bool isCommandRunning() const;
@@ -35,6 +41,7 @@ class AceProManager {
   void _releaseIdleLink();
 
   void _executeJob(AceProJobManager::Job job);
+  DryerInfo _runDryerInfo();
   DryerStatus _runDryerStatus();
   bool _runStart();
   bool _runStop();
@@ -43,6 +50,7 @@ class AceProManager {
   AceProClient _client;
   AceProJobManager _jobManager;
 
+  DryerInfo _dryerInfo{};
   DryerStatus _dryerStatus{};
   bool _stopResult = false;
   bool _startResult = false;
