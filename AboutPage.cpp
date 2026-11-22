@@ -82,13 +82,13 @@ AboutPage::GetInfoResult AboutPage::_getInfo() {
 }
 
 void AboutPage::_showDryerInfo(const char* model, const char* firmware, const char* bootFirmware) {
-  logRouter.print(F("AboutPage::showDryerInfo: Displaying dryer info..."));
-
   if (model == nullptr || model[0] == '\0') {
+    logRouter.println(F("AboutPage::showDryerInfo: ACE Pro is disconnected."));
     _display.printInfoMessage("Disconnected");
     return;
   }
-  _display.printDryerInfo(model, firmware, bootFirmware);
 
+  logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info..."));
+  _display.printDryerInfo(model, firmware, bootFirmware);
   logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info DONE."));
 }

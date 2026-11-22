@@ -17,6 +17,8 @@ void Menu::deactivate() {
 
 void Menu::activate() {
   _isActive.store(true);
+  _isTurnPending.store(false);
+  _isClickPending.store(false);
   _primarySelected = true;
   const bool hasSecondaryButton = _secondaryText != nullptr;
   _knob.configure(0, hasSecondaryButton ? 1 : 0, 1, 0);
@@ -64,7 +66,8 @@ void Menu::onKnobClicked() {
 }
 
 void Menu::loop() {
-  if (_isTurnPending.exchange(false)) {
+  const bool hasSecondaryButton = _secondaryText != nullptr;
+  if (_isTurnPending.exchange(false) && hasSecondaryButton) {
     _primarySelected = _pendingTurnValue.load() <= 0;
     _display.printMenuButtons(_primaryText, _secondaryText, _primarySelected);
   }
@@ -73,10 +76,11 @@ void Menu::loop() {
     return;
   }
 
-  ClickCallback callback = _primarySelected ? _primaryCallback : _secondaryCallback;
+  const bool primaryClicked = _primarySelected || !hasSecondaryButton;
+  ClickCallback callback = primaryClicked ? _primaryCallback : _secondaryCallback;
   if (callback != nullptr) {
     logRouter.print(F("Menu: Button clicked: "));
-    logRouter.println(_primarySelected ? _primaryText : _secondaryText);
+    logRouter.println(primaryClicked ? _primaryText : _secondaryText);
     callback();
   }
 }
