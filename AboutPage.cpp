@@ -1,12 +1,12 @@
 #include "LogRouter.h"
+#include "AceProManager.h"
 
 #include "AboutPage.h"
 
-AboutPage::AboutPage(DisplayManager& display, KnobManager& knob, Menu::ClickCallback backCallback,
-                     RequestInfoCallback requestInfoCallback)
+AboutPage::AboutPage(DisplayManager& display, KnobManager& knob, AceProManager& aceProManager, Menu::ClickCallback backCallback)
     : Page(display),
       _menu(display, knob, "Back", backCallback),
-      _requestInfoCallback(requestInfoCallback) {}
+      _aceProManager(aceProManager) {}
 
 void AboutPage::activate() {
   logRouter.println(F("AboutPage::activate: Activating About page..."));
@@ -40,10 +40,18 @@ void AboutPage::onKnobClicked() {
 }
 
 void AboutPage::loop() {
-  if (!_infoRequested && _requestInfoCallback != nullptr && _requestInfoCallback()) {
+  if (!_infoRequested && _getInfo()) {
     logRouter.println(F("AboutPage::loop: Dryer info requested."));
-    _infoRequested = true;
     _display.printInfoMessage("Reading...");
   }
+
   _menu.loop();
+}
+
+bool AboutPage::_getInfo() {
+  if (!_aceProManager.requestDryerInfo()) {
+    return false;
+  }
+  _infoRequested = true;
+  return true;
 }

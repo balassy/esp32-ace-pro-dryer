@@ -1,14 +1,12 @@
 #pragma once
 
+#include "AceProManager.h"
 #include "Menu.h"
 #include "Page.h"
 
 class AboutPage : public Page {
  public:
-  using RequestInfoCallback = bool (*)();
-
-  AboutPage(DisplayManager& display, KnobManager& knob, Menu::ClickCallback backCallback,
-            RequestInfoCallback requestInfoCallback);
+  AboutPage(DisplayManager& display, KnobManager& knob, AceProManager& aceProManager, Menu::ClickCallback backCallback);
 
   void activate() override;
   void deactivate() override;
@@ -19,6 +17,8 @@ class AboutPage : public Page {
 
  private:
   Menu _menu;
-  RequestInfoCallback _requestInfoCallback;
+  AceProManager& _aceProManager;
+
+  bool _getInfo();
   bool _infoRequested = false;
 };

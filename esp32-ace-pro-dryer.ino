@@ -26,7 +26,6 @@ void onSettingsStartClicked();
 void onSettingsBackClicked();
 void activatePage(Page& page);
 bool isAceProConnectedForRemoteLog();
-bool requestDryerInfoForAboutPage();
 
 DisplayManager displayManager;
 KnobManager knobManager;
@@ -37,7 +36,7 @@ AceProManager aceProManager(logRouter);
 
 MainPage mainPage(displayManager, knobManager, onMainSettingsClicked, onMainStopClicked,
                   onMainAboutClicked);
-AboutPage aboutPage(displayManager, knobManager, onAboutBackClicked, requestDryerInfoForAboutPage);
+AboutPage aboutPage(displayManager, knobManager, aceProManager, onAboutBackClicked);
 SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
 Page* activePage = nullptr;
 
@@ -46,10 +45,6 @@ bool aceConnectionIndicatorState = false;
 
 bool isAceProConnectedForRemoteLog() {
   return aceProManager.isConnected();
-}
-
-bool requestDryerInfoForAboutPage() {
-  return aceProManager.requestDryerInfo();
 }
 
 void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
