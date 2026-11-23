@@ -140,10 +140,24 @@ size_t RemoteLogger::write(const uint8_t* buffer, size_t size) {
 
   bool delivered = false;
   for (WiFiClient& client : _clients) {
-    if (client.connected() && client.write(buffer, size) == size) {
+    if (!client.connected()) {
+      if (client) {
+        client.stop();
+      }
+      continue;
+    }
+
+    size_t sent = 0;
+    for (uint8_t attempt = 0; attempt < 5 && sent < size && client.connected(); ++attempt) {
+      const size_t wrote = client.write(buffer + sent, size - sent);
+      if (wrote == 0) {
+        delay(1);
+        continue;
+      }
+      sent += wrote;
+    }
+    if (sent == size) {
       delivered = true;
-    } else if (client) {
-      client.stop();
     }
   }
 
