@@ -63,6 +63,7 @@ void RemoteLogger::update() {
     _serverStarted = true;
 
     const IPAddress address = WiFi.localIP();
+    snprintf(_serverAddress, sizeof(_serverAddress), "%s.local (.%u)", WIFI_HOSTNAME, address[3]);     
     _unlock();
     logRouter.print(F("RemoteLogger::update: Listening at "));
     logRouter.print(address);
@@ -106,6 +107,10 @@ void RemoteLogger::update() {
     }
   }
   _unlock();
+}
+
+const char* RemoteLogger::getServerAddress() const {
+  return _serverAddress;
 }
 
 void RemoteLogger::_lock() {

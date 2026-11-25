@@ -11,6 +11,8 @@ class RemoteLogger : public Print {
   bool setup();
   void update();
 
+  const char* getServerAddress() const;
+
   size_t write(uint8_t value) override;
   size_t write(const uint8_t* buffer, size_t size) override;
 
@@ -36,4 +38,5 @@ class RemoteLogger : public Print {
   char _pendingMessage[MAX_MESSAGE_LENGTH] = {};
   size_t _pendingMessageLength = 0;
   SemaphoreHandle_t _mutex = nullptr;
+  mutable char _serverAddress[21] = "(server not ready)";
 };

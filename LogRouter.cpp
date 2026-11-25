@@ -1,8 +1,19 @@
 #include "LogRouter.h"
 
+#include "RemoteLogger.h"
+
 #include <cstdio>
 
+extern RemoteLogger remoteLogger;
+
 LogRouter::LogRouter(Print& output) : _output(&output) {}
+
+const char* LogRouter::getServerAddress() const {
+  if (_output == &remoteLogger) {
+    return remoteLogger.getServerAddress();
+  }
+  return "(local debug)";
+}
 
 void LogRouter::setOutput(Print& output) {
   _output = &output;
@@ -95,3 +106,4 @@ size_t LogRouter::write(const uint8_t* buffer, size_t size) {
   }
   return accepted;
 }
+

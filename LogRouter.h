@@ -16,6 +16,8 @@ class LogRouter : public Print {
   size_t write(uint8_t value) override;
   size_t write(const uint8_t* buffer, size_t size) override;
 
+  const char* getServerAddress() const;
+
  private:
   void _beginLine();
   void _endLine();

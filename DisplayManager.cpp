@@ -200,20 +200,28 @@ void DisplayManager::printDryerInfo(const char* model, const char* firmware, con
   _display.setTextColor(SSD1306_WHITE);
 
   const int contentBottom = SCREEN_HEIGHT - MENU_BAR_HEIGHT;
-  int y = _printWrappedText(model, STATUS_BAR_HEIGHT + 2, contentBottom);
-  y++;
-  if (y + DEFAULT_CHAR_HEIGHT <= contentBottom) {
+
+  int y = 0;
+  if (model == nullptr || model[0] == '\0')
+  {
+    y = _printWrappedText("ACE Pro not found!", STATUS_BAR_HEIGHT + 2, contentBottom);
+    y++;
     _display.setCursor(0, y);
-    _display.print(F("Firmware: "));
+    _display.print(F("Connect port 23 on:"));    
+  } else {
+    y = _printWrappedText(model, STATUS_BAR_HEIGHT + 2, contentBottom);
+    y++;
+    _display.setCursor(0, y);
     _display.print(firmware);
-    y += DEFAULT_CHAR_HEIGHT;
-  }
-  y++;
-  if (y + DEFAULT_CHAR_HEIGHT <= contentBottom) {
-    _display.setCursor(0, y);
-    _display.print(F("Boot fw.: "));
+    _display.print(F(" ("));
     _display.print(bootFirmware);
+    _display.print(F(")"));
   }
+  y += DEFAULT_CHAR_HEIGHT;
+  y++;
+  _display.setCursor(0, y);
+  _display.print(logRouter.getServerAddress());
+
   _display.display();
 }
 
