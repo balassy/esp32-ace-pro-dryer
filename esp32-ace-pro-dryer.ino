@@ -63,21 +63,23 @@ void setup() {
   }
 
   displayManager.setup();
+  displayManager.printInfoMessage("Waking up...");
+
   knobManager.setup(onKnobTurned, onKnobClicked);
   
-  activatePage(mainPage);
-  displayManager.printStatus("Initializing...");
-
   if(aceProManager.setup()) {
+    activatePage(mainPage);
     displayManager.printStatus("Ready.");
+    
+    ledManager.turnOnGreen();
 
     aceConnectionIndicatorState = aceProManager.isConnected();
-    displayManager.setAceProConnected(aceConnectionIndicatorState);
+    displayManager.setAceProConnected(aceConnectionIndicatorState);  
   } else {
-    displayManager.printStatus("ACE not found!");
+    displayManager.printInfoMessage("ACE not found!");
+    ledManager.turnOnRed();
   }
 
-  ledManager.turnOnGreen();
   logRouter.println(F("setup: Initializing ESP32 ACE Pro Dryer DONE."));
   logRouter.println();
   logRouter.flush();
