@@ -280,3 +280,13 @@ void DisplayManager::printTargetTemperature(long value) {
 
   _display.display();
 }
+
+void DisplayManager::printBootMessage(){
+  _display.setTextColor(SSD1306_WHITE);
+
+  _display.setFont(&FreeSans9pt7b);
+  _display.setCursor(10, 40);
+  _display.print("Waking up...");
+
+  _display.display();  
+}

@@ -16,6 +16,7 @@ class DisplayManager {
   void updateSpinner();
   void printCurrentTemperature(long value);
   void printTargetTemperature(long value);
+  void printBootMessage();
 
  private:
    void _drawSpinner();

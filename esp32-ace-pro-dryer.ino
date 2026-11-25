@@ -63,13 +63,13 @@ void setup() {
   }
 
   displayManager.setup();
-  displayManager.printInfoMessage("Waking up...");
+  displayManager.printBootMessage();
 
   knobManager.setup(onKnobTurned, onKnobClicked);
   
   if(aceProManager.setup()) {
     activatePage(mainPage);
-    displayManager.printStatus("Ready.");
+    displayManager.printStatus("Connecting...");
     
     ledManager.turnOnGreen();
 
