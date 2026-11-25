@@ -93,10 +93,6 @@ void RemoteLogger::update() {
     logRouter.println(remoteAddress);
     _lock();
     _clients[slot].println(F("RemoteLogger::update: Welcome! Remote log stream connected."));
-    if (_connectionStatusCallback != nullptr) {
-      _clients[slot].print(F("RemoteLogger::update: ACE Pro connection status: "));
-      _clients[slot].println(_connectionStatusCallback() ? F("connected.") : F("disconnected."));
-    }
   }
 
   for (WiFiClient& client : _clients) {
@@ -110,11 +106,6 @@ void RemoteLogger::update() {
     }
   }
   _unlock();
-}
-
-
-void RemoteLogger::setConnectionStatusCallback(ConnectionStatusCallback callback) {
-  _connectionStatusCallback = callback;
 }
 
 void RemoteLogger::_lock() {

@@ -78,7 +78,7 @@ void Menu::loop() {
 
   const bool primaryClicked = _primarySelected || !hasSecondaryButton;
   ClickCallback callback = primaryClicked ? _primaryCallback : _secondaryCallback;
-  if (callback != nullptr) {
+  if (callback) {
     logRouter.print(F("Menu: Button clicked: "));
     logRouter.println(primaryClicked ? _primaryText : _secondaryText);
     callback();

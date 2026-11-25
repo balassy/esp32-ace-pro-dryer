@@ -8,9 +8,6 @@
 
 class RemoteLogger : public Print {
  public:
-  using ConnectionStatusCallback = bool (*)();
-
-  void setConnectionStatusCallback(ConnectionStatusCallback callback);
   bool setup();
   void update();
 
@@ -32,8 +29,6 @@ class RemoteLogger : public Print {
   WiFiClient _clients[MAX_CLIENTS];
   bool _started = false;
   bool _serverStarted = false;
-  
-  ConnectionStatusCallback _connectionStatusCallback = nullptr;
   
   char _messages[MAX_MESSAGES][MAX_MESSAGE_LENGTH] = {};
   uint8_t _messageCount = 0;

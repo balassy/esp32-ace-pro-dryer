@@ -20,7 +20,6 @@ void onKnobTurned(long value);
 void onKnobClicked(unsigned long duration);
 void onMainSettingsClicked();
 void onMainAboutClicked();
-void onMainStopClicked();
 void onAboutBackClicked();
 void onSettingsStartClicked();
 void onSettingsBackClicked();
@@ -34,39 +33,13 @@ LogRouter logRouter(Serial);
 RemoteLogger remoteLogger;
 AceProManager aceProManager(logRouter);
 
-MainPage mainPage(displayManager, knobManager, onMainSettingsClicked, onMainStopClicked,
-                  onMainAboutClicked);
+MainPage mainPage(displayManager, knobManager, aceProManager, ledManager, onMainSettingsClicked, onMainAboutClicked);
 AboutPage aboutPage(displayManager, knobManager, aceProManager, onAboutBackClicked);
-SettingsPage settingsPage(displayManager, knobManager, onSettingsStartClicked, onSettingsBackClicked);
+SettingsPage settingsPage(displayManager, knobManager, aceProManager, onSettingsStartClicked, onSettingsBackClicked);
+
 Page* activePage = nullptr;
 
-bool aceDryingActive = false;
 bool aceConnectionIndicatorState = false;
-
-bool isAceProConnectedForRemoteLog() {
-  return aceProManager.isConnected();
-}
-
-void applyDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
-  logRouter.print(F("applyDryerStatus: Dryer status: current temp: "));
-  logRouter.println(dryerStatus.currentTemperatureCelsius);
-
-  if (!dryerStatus.valid || !dryerStatus.responseComplete) {
-    displayManager.printStatus("Status unavailable");
-  } else if (dryerStatus.isDrying) {
-    aceDryingActive = true;
-    mainPage.setDrying(true);
-    displayManager.printStatus("Drying");
-    displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
-    ledManager.turnOnRed();
-  } else {
-    aceDryingActive = false;
-    mainPage.setDrying(false);
-    displayManager.printStatus("Ready");
-    displayManager.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
-    ledManager.turnOnGreen();
-  }
-}
 
 // ------------------------------ Arduino handlers ------------------------------
 
@@ -80,7 +53,6 @@ void setup() {
 
   ledManager.turnOnBlue();
 
-  remoteLogger.setConnectionStatusCallback(isAceProConnectedForRemoteLog);
   if (remoteLogger.setup()) {
     logRouter.println(F("setup: Logging destination switching from Serial to remote logger."));
     logRouter.flush();
@@ -94,6 +66,7 @@ void setup() {
   knobManager.setup(onKnobTurned, onKnobClicked);
   
   activatePage(mainPage);
+  displayManager.printStatus("Initializing...");
 
   if(aceProManager.setup()) {
     displayManager.printStatus("Ready.");
@@ -113,46 +86,11 @@ void setup() {
 void loop() {
   displayManager.updateSpinner();
   remoteLogger.update();
+
   const bool aceConnected = aceProManager.isConnected();
   if (aceConnected != aceConnectionIndicatorState) {
     aceConnectionIndicatorState = aceConnected;
     displayManager.setAceProConnected(aceConnected);
-  }
-
-  AceProManager::DryerStatus dryerStatus;
-  if (aceProManager.takeDryerStatus(dryerStatus)) {
-    applyDryerStatus(dryerStatus);
-  }
-
-  bool dryingStarted = false;
-  if (aceProManager.takeStart(dryingStarted)) {
-    if (dryingStarted) {
-      aceDryingActive = true;
-      mainPage.setDrying(true);
-      displayManager.printStatus("Drying");
-      ledManager.turnOnRed();
-    } else {
-      displayManager.printStatus("Start unconfirmed");
-    }
-  }
-  bool dryingStopped = false;
-  if (aceProManager.takeStop(dryingStopped)) {
-    if (dryingStopped) {
-      aceDryingActive = false;
-      mainPage.setDrying(false);
-      displayManager.printStatus("Drying stopped");
-      ledManager.turnOnGreen();
-    } else {
-      displayManager.printStatus("Stop unconfirmed");
-    }
-  }
-
-  static unsigned long lastDryerStatusRequestMs = 0;
-  if (activePage == &mainPage && !aceProManager.isCommandRunning() &&
-      millis() - lastDryerStatusRequestMs >= 10000) {
-    if (aceProManager.requestDryerStatus()) {
-      lastDryerStatusRequestMs = millis();
-    }
   }
 
   static unsigned long lastCommandLogMs = 0;
@@ -173,7 +111,7 @@ void loop() {
 // ------------------------------ Knob event handlers --------------------------
 
 void onKnobTurned(long value) {
-  logRouter.print(F("Encoder value: "));
+  logRouter.print(F("onKnobTurned: Encoder value: "));
   logRouter.println(value);
   if (activePage != nullptr) {
     activePage->onKnobTurned(value);
@@ -181,7 +119,7 @@ void onKnobTurned(long value) {
 }
 
 void onKnobClicked(unsigned long duration) {
-  logRouter.print(F("Encoder button clicked for "));
+  logRouter.print(F("onKnobClicked: Encoder button clicked for "));
   logRouter.print(duration);
   logRouter.println(F(" ms."));
   if (activePage != nullptr) {
@@ -200,7 +138,6 @@ void activatePage(Page& page) {
 }
 
 void onMainSettingsClicked() {
-  mainPage.deactivate();
   activatePage(settingsPage);
 }
 
@@ -210,40 +147,12 @@ void onMainAboutClicked() {
 
 void onAboutBackClicked() {
   activatePage(mainPage);
-
-  // Updating the heating status when navigating back to the main page.
-  displayManager.printStatus("Checking ACE Pro...");
-  if (!aceProManager.requestDryerStatus()) {
-    displayManager.printStatus("Busy");
-  }
-}
-
-void onMainStopClicked() {
-  logRouter.println(F("Stopping dryer..."));
-  if (!aceProManager.requestStop()) {
-    displayManager.printStatus("Busy");
-    return;
-  }
-  displayManager.printStatus("Stopping...");
 }
 
 void onSettingsStartClicked() {
   activatePage(mainPage);
-  if (!aceProManager.requestStart()) {
-    displayManager.printStatus("Busy");
-    return;
-  }
-  displayManager.printStatus("Checking ACE Pro...");
 }
 
 void onSettingsBackClicked() {
-  settingsPage.deactivate();
   activatePage(mainPage);
-  mainPage.setDrying(aceDryingActive);
-  displayManager.printStatus("Ready.");
-  if (aceDryingActive) {
-    ledManager.turnOnRed();
-  } else {
-    ledManager.turnOnGreen();
-  }
 }

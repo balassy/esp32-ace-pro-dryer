@@ -1,12 +1,14 @@
 #include "LogRouter.h"
 #include "AceProManager.h"
+#include "Menu.h"
 
 #include "AboutPage.h"
 
-AboutPage::AboutPage(DisplayManager& display, KnobManager& knob, AceProManager& aceProManager, Menu::ClickCallback backCallback)
+AboutPage::AboutPage(DisplayManager& display, KnobManager& knob, AceProManager& aceProManager, Menu::ClickCallback onBackButtonClickedCallback)
     : Page(display),
-      _menu(display, knob, "Back", backCallback),
-      _aceProManager(aceProManager) {}
+      _menu(display, knob, "Back", this, &AboutPage::_onBackButtonClicked),
+      _aceProManager(aceProManager),
+      _onBackButtonClickedCallback(onBackButtonClickedCallback) {}
 
 void AboutPage::activate() {
   logRouter.println(F("AboutPage::activate: Activating About page..."));
@@ -20,7 +22,6 @@ void AboutPage::activate() {
 void AboutPage::deactivate() {
   _menu.deactivate();
 }
-
 
 void AboutPage::onKnobTurned(long value) {
   _menu.onKnobTurned(value);
@@ -91,4 +92,11 @@ void AboutPage::_showDryerInfo(const char* model, const char* firmware, const ch
   logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info..."));
   _display.printDryerInfo(model, firmware, bootFirmware);
   logRouter.println(F("AboutPage::showDryerInfo: Displaying dryer info DONE."));
+}
+
+void AboutPage::_onBackButtonClicked() {
+  logRouter.println(F("AboutPage::_onBackButtonClicked: Back button clicked."));
+  if (_onBackButtonClickedCallback) {
+    _onBackButtonClickedCallback();
+  }
 }

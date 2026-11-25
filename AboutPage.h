@@ -6,7 +6,7 @@
 
 class AboutPage : public Page {
  public:
-  AboutPage(DisplayManager& display, KnobManager& knob, AceProManager& aceProManager, Menu::ClickCallback backCallback);
+  AboutPage(DisplayManager& display, KnobManager& knob, AceProManager& aceProManager, Menu::ClickCallback onBackButtonClickedCallback);
 
   void activate() override;
   void deactivate() override;
@@ -25,4 +25,7 @@ class AboutPage : public Page {
   GetInfoState _getInfoState = GetInfoState::NOT_REQUESTED;
 
   void _showDryerInfo(const char* model, const char* firmware, const char* bootFirmware);
+
+  void _onBackButtonClicked();
+  Menu::ClickCallback _onBackButtonClickedCallback = nullptr;
 };
