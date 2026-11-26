@@ -69,7 +69,7 @@ void setup() {
   
   if(aceProManager.setup()) {
     activatePage(mainPage);
-    displayManager.printStatus("Connecting...");
+    displayManager.printInfoMessage("Connecting...");
     
     ledManager.turnOnGreen();
 

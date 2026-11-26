@@ -10,7 +10,7 @@ MainPage::MainPage(DisplayManager& display,
                    Menu::ClickCallback onSettingsButtonClickedCallback, 
                    Menu::ClickCallback onAboutButtonClickedCallback)
     : Page(display),
-      _menu(display, knob, "Start", onSettingsButtonClickedCallback, "About", onAboutButtonClickedCallback),
+      _menu(display, knob, "Start...", onSettingsButtonClickedCallback, "About", onAboutButtonClickedCallback),
       _aceProManager(aceProManager),
       _ledManager(ledManager),
       _onSettingsButtonClickedCallback(onSettingsButtonClickedCallback),
@@ -19,7 +19,8 @@ MainPage::MainPage(DisplayManager& display,
 void MainPage::activate() {
   logRouter.println(F("MainPage::activate: Activating Main page..."));
   _display.clear();
-  _display.printStatus("Updating...");
+  _display.printStatus("Main");
+  _display.printInfoMessage("Updating...");
   _menu.activate();
   logRouter.println(F("MainPage::activate: Activating Main page DONE."));
 }
@@ -153,7 +154,7 @@ void MainPage::_showDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
     _display.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
   } else {
     _display.printStatus("Not drying");
-    _menu.setPrimaryButton("Start drying", [this]() { _onSettingsButtonClicked(); });
+    _menu.setPrimaryButton("Start...", [this]() { _onSettingsButtonClicked(); });
     _ledManager.turnOnGreen();
     _display.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
   }

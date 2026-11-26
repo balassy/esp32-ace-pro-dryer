@@ -238,9 +238,10 @@ void DisplayManager::updateSpinner() {
 void DisplayManager::printCurrentTemperature(long value) {
   char text[16];
   snprintf(text, sizeof(text), "%ld C", value);
-  _display.setTextColor(SSD1306_WHITE);
-
+  
+  _clearContent();
   _display.setFont(&FreeSans9pt7b);
+  _display.setTextColor(SSD1306_WHITE);
   _display.setCursor(0, 35);
   _display.print("Current:");
 
