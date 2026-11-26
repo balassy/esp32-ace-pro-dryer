@@ -151,12 +151,12 @@ void MainPage::_showDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
     _display.printStatus("Drying");
     _menu.setPrimaryButton("Stop drying", [this]() { _onStopButtonClicked(); });
     _ledManager.turnOnRed();
-    _display.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
+    _display.printDryerStatus(dryerStatus);
   } else {
     _display.printStatus("Not drying");
     _menu.setPrimaryButton("Start...", [this]() { _onSettingsButtonClicked(); });
     _ledManager.turnOnGreen();
-    _display.printCurrentTemperature(dryerStatus.currentTemperatureCelsius);
+    _display.printDryerStatus(dryerStatus);
   }
 
   logRouter.println(F("MainPage::_showDryerStatus: Show dryer status DONE."));

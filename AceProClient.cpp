@@ -815,7 +815,7 @@ AceProClient::Error AceProClient::getDryerStatus(DryerStatus& dryerStatus) {
 
 AceProClient::Error AceProClient::startDrying() {
   size_t responseLength = 0;
-  return sendAceProMethod(_logger, "drying", "{\"temp\":45,\"duration\":3,\"fan_speed\":50}",
+  return sendAceProMethod(_logger, "drying", "{\"temp\":40,\"duration\":2,\"fan_speed\":50}",
                           "startDrying", "drying command.", responseLength);
 }
 

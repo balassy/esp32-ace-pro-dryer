@@ -47,7 +47,7 @@ void AboutPage::loop() {
 
         case GetInfoResult::ERROR:
           logRouter.println(F("AboutPage::loop: ERROR: Failed to request dryer info."));
-          _display.printInfoMessage("Unknown error :("); // TODO: SPecifically handle the Disconnected case.
+          _display.printInfoMessage("ACE Pro not found :("); // TODO: SPecifically handle the Disconnected case.
           break;
 
         default:

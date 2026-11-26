@@ -11,6 +11,7 @@
 
 #include "config.h"
 #include "LogRouter.h"
+#include "AceProManager.h"
 
 DisplayManager::DisplayManager()
     : _display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {}
@@ -235,42 +236,41 @@ void DisplayManager::updateSpinner() {
   _display.display();
 }
 
-void DisplayManager::printCurrentTemperature(long value) {
-  char text[16];
-  snprintf(text, sizeof(text), "%ld C", value);
-  
+void DisplayManager::printDryerStatus(const AceProManager::DryerStatus& status) {
   _clearContent();
-  _display.setFont(&FreeSans9pt7b);
   _display.setTextColor(SSD1306_WHITE);
-  _display.setCursor(0, 35);
-  _display.print("Current:");
+  _display.setFont(&FreeSans9pt7b);
+  
+  _display.drawBitmap(0, STATUS_BAR_HEIGHT + 4, thermometer_icon, 16, 16, SSD1306_WHITE);
+  _display.setCursor(24, STATUS_BAR_HEIGHT + 17);
+  char tempLine[16];
 
-  _display.fillRect(75, STATUS_BAR_HEIGHT, SCREEN_WIDTH - 75, VALUE_CHAR_HEIGHT, SSD1306_BLACK); // Clear the right side of the display
+  if (status.isDrying) {
+    snprintf(tempLine, sizeof(tempLine), "%ld / %ld C", status.currentTemperatureCelsius, status.targetTemperatureCelsius);
+    _display.print(tempLine);
+    
+    _display.drawBitmap(0, STATUS_BAR_HEIGHT + 22, clock_icon_small, 16, 16, SSD1306_WHITE);
+    _display.setCursor(24, STATUS_BAR_HEIGHT + 10 + VALUE_CHAR_HEIGHT);
+    const unsigned int remainingTimeMinutes = static_cast<unsigned int>(ceilf(status.remainingTimeSeconds / 60.0f));
+    char timeLine[16];
+    snprintf(timeLine, sizeof(timeLine), "%ld min", remainingTimeMinutes);
+    _display.print(timeLine);
+  } else {
+    snprintf(tempLine, sizeof(tempLine), "%ld", status.currentTemperatureCelsius);
+    _display.print(tempLine);
 
-  _display.setFont(&FreeSansBold9pt7b);
-  _display.setCursor(75, 35);
-  _display.print(text);
+    // Draw a 2px-radius degree ring slightly above the baseline
+    int16_t cx = _display.getCursorX() + 2;
+    int16_t cy = STATUS_BAR_HEIGHT + 17 - 10;
+    _display.drawCircle(cx, cy, 2, SSD1306_WHITE);
 
-  _display.display();
+    _display.setCursor(cx + 5, STATUS_BAR_HEIGHT + 17);
+    _display.print("C");
+  }
+
+  _display.display();  
 }
 
-void DisplayManager::printTargetTemperature(long value) {
-  char text[16];
-  snprintf(text, sizeof(text), "%ld C", value);
-  _display.setTextColor(SSD1306_WHITE);
-
-  _display.setFont(&FreeSans9pt7b);
-  _display.setCursor(0, SCREEN_HEIGHT - 8);
-  _display.print("Target:");
-
-  _display.fillRect(75, STATUS_BAR_HEIGHT + VALUE_CHAR_HEIGHT, SCREEN_WIDTH - 75, VALUE_CHAR_HEIGHT, SSD1306_BLACK); // Clear the right side of the display
-
-  _display.setFont(&FreeSansBold9pt7b);
-  _display.setCursor(75, SCREEN_HEIGHT - 8);
-  _display.print(text);
-
-  _display.display();
-}
 
 void DisplayManager::printBootMessage(){
   _display.setTextColor(SSD1306_WHITE);
