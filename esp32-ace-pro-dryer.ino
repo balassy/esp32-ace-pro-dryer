@@ -7,6 +7,7 @@
 // Project classes.
 #include "AboutPage.h"
 #include "AceProManager.h"
+#include "CommunicationIndicator.h"
 #include "DisplayManager.h"
 #include "KnobManager.h"
 #include "LedManager.h"
@@ -24,7 +25,6 @@ void onAboutBackClicked();
 void onSettingsStartClicked();
 void onSettingsBackClicked();
 void activatePage(Page& page);
-bool isAceProConnectedForRemoteLog();
 
 DisplayManager displayManager;
 KnobManager knobManager;
@@ -37,9 +37,9 @@ MainPage mainPage(displayManager, knobManager, aceProManager, ledManager, onMain
 AboutPage aboutPage(displayManager, knobManager, aceProManager, onAboutBackClicked);
 SettingsPage settingsPage(displayManager, knobManager, aceProManager, onSettingsStartClicked, onSettingsBackClicked);
 
-Page* activePage = nullptr;
+CommunicationIndicator communicationIndicator(displayManager, aceProManager);
 
-bool aceConnectionIndicatorState = false;
+Page* activePage = nullptr;
 
 // ------------------------------ Arduino handlers ------------------------------
 
@@ -73,8 +73,7 @@ void setup() {
     
     ledManager.turnOnGreen();
 
-    aceConnectionIndicatorState = aceProManager.isConnected();
-    displayManager.setAceProConnected(aceConnectionIndicatorState);  
+    communicationIndicator.setup();
   } else {
     displayManager.printInfoMessage("ACE not found!");
     ledManager.turnOnRed();
@@ -89,11 +88,7 @@ void loop() {
   displayManager.updateSpinner();
   remoteLogger.update();
 
-  const bool aceConnected = aceProManager.isConnected();
-  if (aceConnected != aceConnectionIndicatorState) {
-    aceConnectionIndicatorState = aceConnected;
-    displayManager.setAceProConnected(aceConnected);
-  }
+  communicationIndicator.update();
 
   static unsigned long lastCommandLogMs = 0;
   if (aceProManager.isCommandRunning() && millis() - lastCommandLogMs >= 1000) {

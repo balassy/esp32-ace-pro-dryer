@@ -51,7 +51,6 @@ void MainPage::loop() {
           _display.printStatus("Stop requested");
         } else {
           logRouter.println(F("MainPage::loop: Taking stop unconfirmed."));
-          _display.printStatus("Stop unconfirmed");          
         }
       }      
       break;
@@ -78,11 +77,9 @@ void MainPage::loop() {
         _getDryerStatusState = GetDryerStatusState::IDLE;
         if (dryerStatus.valid && dryerStatus.responseComplete) {
           logRouter.println(F("MainPage::loop: Taking dryer status DONE."));
-          _display.printStatus("Status requested");
           _showDryerStatus(dryerStatus);
         } else {
           logRouter.println(F("MainPage::loop: Taking dryer status unconfirmed."));
-          _display.printStatus("Status unconfirmed");          
         }
       }
       break;

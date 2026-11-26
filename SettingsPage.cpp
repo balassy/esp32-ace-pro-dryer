@@ -46,7 +46,6 @@ void SettingsPage::loop() {
           _display.printStatus("Start requested");
         } else {
            logRouter.println(F("SettingsPage::loop: Taking start unconfirmed."));
-          _display.printStatus("Start unconfirmed");         
         }
         _startDryingState = StartDryingState::IDLE;
 

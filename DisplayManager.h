@@ -8,8 +8,8 @@ class DisplayManager {
 
   bool setup();
   void clear();
+  void drawCommunicationIndicator(bool isActive);
   void printStatus(const char* text);
-  void setAceProConnected(bool connected);
   void printMenuButtons(const char* primaryText, const char* secondaryText, bool primarySelected);
   void printInfoMessage(const char* text);
   void printDryerInfo(const char* model, const char* firmware, const char* bootFirmware);
@@ -20,7 +20,6 @@ class DisplayManager {
 
  private:
    void _drawSpinner();
-   void _drawAceProIndicator();
    void _clearContent();
    int _printWrappedText(const char* text, int y, int maxY);
    void _printCenteredMenuButton(const char* text, int x, int width, int y);
@@ -35,7 +34,6 @@ class DisplayManager {
    static constexpr unsigned long SPINNER_INTERVAL_MS = 500;
 
    Adafruit_SSD1306 _display;
-   bool _aceProConnected = false;
    unsigned long _lastSpinnerUpdate = 0;
    unsigned int _spinnerFrame = 0;
 };

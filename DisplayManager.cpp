@@ -44,7 +44,6 @@ bool DisplayManager::setup() {
 
 void DisplayManager::clear() {
   _display.clearDisplay();
-  _drawAceProIndicator();
   _display.display();
 }
 
@@ -68,30 +67,21 @@ void DisplayManager::printStatus(const char* text) {
   // Print the centered text inside the bar.
   _display.setCursor(startX, startY);
   _display.print(text);
-  _drawAceProIndicator();
 
   _display.display();
 }
 
-void DisplayManager::setAceProConnected(bool connected) {
-  if (_aceProConnected == connected) {
-    return;
-  }
-
-  _aceProConnected = connected;
-  _drawAceProIndicator();
-  _display.display();
-}
-
-void DisplayManager::_drawAceProIndicator() {
-  constexpr int indicatorX = SCREEN_WIDTH - 9;
-  constexpr int indicatorY = STATUS_BAR_HEIGHT / 2;
-  _display.fillRect(SCREEN_WIDTH - 12, 0, 12, STATUS_BAR_HEIGHT, SSD1306_WHITE);
-  if (_aceProConnected) {
+void DisplayManager::drawCommunicationIndicator(bool isActive) {
+  constexpr int indicatorX = SCREEN_WIDTH - 7;
+  constexpr int indicatorY =  STATUS_BAR_HEIGHT / 2 - 1;
+  
+  if (isActive) {
     _display.fillCircle(indicatorX, indicatorY, 3, SSD1306_BLACK);
   } else {
-    _display.drawCircle(indicatorX, indicatorY, 3, SSD1306_BLACK);
+    _display.fillRect(SCREEN_WIDTH - 12, 0, 12, STATUS_BAR_HEIGHT, SSD1306_WHITE);
   }
+
+  _display.display();
 }
 
 void DisplayManager::printMenuButtons(const char* primaryText,
