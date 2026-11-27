@@ -5,9 +5,9 @@
 #include <Adafruit_GFX.h>
 
 // Font reference: https://learn.adafruit.com/adafruit-gfx-graphics-library/using-fonts
-#include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSerifItalic12pt7b.h>
+#include <Fonts/TomThumb.h>
+#include <Fonts/Org_01.h>
 
 #include "config.h"
 #include "LogRouter.h"
@@ -274,6 +274,43 @@ void DisplayManager::printBootMessage(){
   _display.setFont(&FreeSans9pt7b);
   _display.setCursor(10, 40);
   _display.print("Waking up...");
+
+  _display.display();  
+}
+
+void DisplayManager::drawProfileMenu() {
+  _clearContent();
+  _display.setFont(nullptr);
+  _display.setTextSize(1);
+  _display.setTextColor(SSD1306_WHITE);
+
+  int x = 0;
+  int y = STATUS_BAR_HEIGHT + 4;
+  _display.setCursor(x, y);
+  _display.print("> PLA");
+
+  y = y + DEFAULT_CHAR_HEIGHT + 4;
+  _display.setCursor(x, y);
+  _display.print("> PLA+");
+
+  y = y + DEFAULT_CHAR_HEIGHT + 4;
+  _display.setCursor(x, y);
+  _display.print("> PLA HS");  
+
+  x = SCREEN_WIDTH / 2;
+
+  y = STATUS_BAR_HEIGHT + 4;
+  _display.setCursor(x, y);
+  _display.print("> PETG");
+
+  y = y + DEFAULT_CHAR_HEIGHT + 4;
+  _display.setCursor(x, y);
+  _display.print("> ABS");
+
+  y = y + DEFAULT_CHAR_HEIGHT + 8;
+  _display.setFont(&Org_01);
+  _display.setCursor(SCREEN_WIDTH - 36, SCREEN_HEIGHT - STATUS_BAR_HEIGHT - 5);
+  _display.print("60C 2h");
 
   _display.display();  
 }

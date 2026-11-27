@@ -14,7 +14,10 @@ SettingsPage::SettingsPage(DisplayManager& display, KnobManager& knob, AceProMan
 
 void SettingsPage::activate() {
   _display.clear();
-  _display.printStatus("Settings");
+  _display.printStatus("Select program:");
+
+  _display.drawProfileMenu();
+
   _menu.activate();
 }
 

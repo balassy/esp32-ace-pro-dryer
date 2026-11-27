@@ -79,6 +79,7 @@ class DisplayManager {
   void printInfoMessage(const char* text);
   void printDryerInfo(const char* model, const char* firmware, const char* bootFirmware);
   void printDryerStatus(const AceProManager::DryerStatus& status);
+  void drawProfileMenu();
 
  private:
    void _drawSpinner();
