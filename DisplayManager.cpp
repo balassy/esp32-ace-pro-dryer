@@ -243,21 +243,17 @@ void DisplayManager::printDryerStatus(const AceProManager::DryerStatus& status) 
   
   _display.drawBitmap(0, STATUS_BAR_HEIGHT + 4, thermometer_icon, 16, 16, SSD1306_WHITE);
   _display.setCursor(24, STATUS_BAR_HEIGHT + 17);
-  char tempLine[16];
+  // char tempLine[16];
 
   if (status.isDrying) {
-    snprintf(tempLine, sizeof(tempLine), "%ld / %ld C", status.currentTemperatureCelsius, status.targetTemperatureCelsius);
-    _display.print(tempLine);
+    _display.printf("%ld / %ld C", status.currentTemperatureCelsius, status.targetTemperatureCelsius);
     
     _display.drawBitmap(0, STATUS_BAR_HEIGHT + 22, clock_icon_small, 16, 16, SSD1306_WHITE);
     _display.setCursor(24, STATUS_BAR_HEIGHT + 10 + VALUE_CHAR_HEIGHT);
     const unsigned int remainingTimeMinutes = static_cast<unsigned int>(ceilf(status.remainingTimeSeconds / 60.0f));
-    char timeLine[16];
-    snprintf(timeLine, sizeof(timeLine), "%ld min", remainingTimeMinutes);
-    _display.print(timeLine);
+    _display.printf("%ld min", remainingTimeMinutes);
   } else {
-    snprintf(tempLine, sizeof(tempLine), "%ld", status.currentTemperatureCelsius);
-    _display.print(tempLine);
+    _display.printf("%ld", status.currentTemperatureCelsius);
 
     // Draw a 2px-radius degree ring slightly above the baseline
     int16_t cx = _display.getCursorX() + 2;
