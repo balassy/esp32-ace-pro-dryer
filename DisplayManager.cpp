@@ -297,17 +297,18 @@ void DisplayManager::printDryerStatus(const AceProManager::DryerStatus& status) 
     _display.drawBitmap(21, 27, image_Heating_icon_bits, 8, 8, 1);
     // Time icon
     _display.drawBitmap(70, 21, image_Time_icon_bits, 15, 16, 1);
+    // Time remaining (right aligned to the label with gap before the label)
+    _display.setFont(&FreeSans9pt7b);
+    _printRightAlignedText(remainingTimeMinutes, 118 - 6, 34);
     // Time label
+    _display.setFont(&Org_01);
     _display.setCursor(118, 34);
     _display.print("M");
-    // Time remaining
-    _display.setFont(&FreeSans9pt7b);
-    _display.setCursor(86, 34);
-    _display.printf("%ld", remainingTimeMinutes);
-    // Time percentage
+    // Time percentage (right aligned)
+    char completedPercentageText[4];
+    snprintf(completedPercentageText, sizeof(completedPercentageText), "%u%%", completedPercentage);
     _display.setFont(&Org_01);
-    _display.setCursor(106, 44);
-    _display.printf("%u%%", completedPercentage);
+    _printRightAlignedText(completedPercentageText, 123, 44);
     // Time progress bar frame
     _display.drawRect(70, 40, 34, 5, 1);
     // Time progress bar value
@@ -373,4 +374,29 @@ void DisplayManager::drawProfileMenu() {
   _display.print("60C 2h");
 
   _display.display();  
+}
+
+void DisplayManager::_printRightAlignedText(const unsigned int value, int16_t rightEdgeX, int16_t baselineY) {
+  char text[8];
+  snprintf(text, sizeof(text), "%u", value);
+
+  _printRightAlignedText(text, rightEdgeX, baselineY);
+}
+
+void DisplayManager::_printRightAlignedText(const char* text, int16_t rightEdgeX, int16_t baselineY) {
+  if (text == nullptr || text[0] == '\0') {
+    return;
+  }
+
+  int16_t x1 = 0;
+  int16_t y1 = 0;
+  uint16_t measuredWidth = 0;
+  uint16_t measuredHeight = 0;
+  
+  // Measure at x = 0 so proximity to the right edge never wraps or distorts width
+  _display.getTextBounds(text, 0, baselineY, &x1, &y1, &measuredWidth, &measuredHeight);
+
+  const int16_t cursorX = static_cast<int16_t>(rightEdgeX - static_cast<int16_t>(measuredWidth));
+  _display.setCursor(cursorX, baselineY);
+  _display.print(text);
 }

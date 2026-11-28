@@ -34,6 +34,8 @@ class DisplayManager {
    void _clearContent();
    int _printWrappedText(const char* text, int y, int maxY);
    void _printCenteredMenuButton(const char* text, int x, int width, int y);
+   void _printRightAlignedText(const unsigned int value, int16_t rightEdgeX, int16_t baselineY);
+   void _printRightAlignedText(const char* text, int16_t rightEdgeX, int16_t baselineY);
 
    static constexpr int SCREEN_WIDTH = 128;       // Width of the display in pixels.
    static constexpr int SCREEN_HEIGHT = 64;       // Height of the display in pixels.
