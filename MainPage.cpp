@@ -10,7 +10,7 @@ MainPage::MainPage(DisplayManager& display,
                    Menu::ClickCallback onSettingsButtonClickedCallback, 
                    Menu::ClickCallback onAboutButtonClickedCallback)
     : Page(display),
-      _menu(display, knob, "Start...", onSettingsButtonClickedCallback, "About", onAboutButtonClickedCallback),
+      _menu(display, knob, "Start", onSettingsButtonClickedCallback, "About", onAboutButtonClickedCallback),
       _aceProManager(aceProManager),
       _ledManager(ledManager),
       _onSettingsButtonClickedCallback(onSettingsButtonClickedCallback),
@@ -49,7 +49,7 @@ void MainPage::loop() {
         _stopDryingState = StopDryingState::IDLE;
         if (dryingStopped) {
           logRouter.println(F("MainPage::loop: Taking stop DONE."));
-          _display.printStatus("Stop requested");
+          _display.printStatus("Stopping...");
         } else {
           logRouter.println(F("MainPage::loop: Taking stop unconfirmed."));
         }
@@ -154,7 +154,7 @@ void MainPage::_showDryerStatus(const AceProManager::DryerStatus& dryerStatus) {
     _display.printDryerStatus(dryerStatus);
   } else {
     _display.printStatus("Not drying");
-    _menu.setPrimaryButton("Start...", [this]() { _onSettingsButtonClicked(); });
+    _menu.setPrimaryButton("Start", [this]() { _onSettingsButtonClicked(); });
     _ledManager.turnOnGreen();
     _display.printDryerStatus(dryerStatus);
   }

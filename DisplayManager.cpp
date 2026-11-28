@@ -237,62 +237,92 @@ void DisplayManager::updateSpinner() {
 }
 
 void DisplayManager::printDryerStatus(const AceProManager::DryerStatus& status) {
+  // UI layout is designed with https://lopaka.app/canvas/65042/125106.
   _clearContent();
 
   // Temperature frame
   _display.drawRoundRect(0, 14, 62, 36, 4, 1);
+  // Time frame
+  _display.drawRoundRect(66, 14, 62, 36, 4, 1);
   // Temperature icon
-  _display.drawBitmap(4, 23, image_Temperature_icon_bits, 16, 16, 1);
+  _display.drawBitmap(5, 21, image_Temperature_icon_bits, 16, 16, 1);
   // Temperature current
   _display.setTextColor(1);
   _display.setFont(&FreeSans9pt7b);
-  _display.setCursor(27, 36);
+  _display.setCursor(31, 34);
   _display.printf("%ld", status.currentTemperatureCelsius);
   // Temperature current degree symbol
-  _display.drawEllipse(50, 26, 2, 2, 1);
+  _display.drawEllipse(54, 24, 2, 2, 1);
   // Temperature label
   _display.setFont(&Org_01);
-  _display.setCursor(48, 36);
+  _display.setCursor(52, 34);
   _display.print("C");
-  // Temperature target
-  _display.setCursor(36, 44);
-  _display.printf("%ldC", status.targetTemperatureCelsius);
 
-  // Time frame
-  _display.drawRoundRect(66, 14, 62, 36, 4, 1);
-  // Time icon
-  _display.drawBitmap(69, 23, image_Time_icon_bits, 15, 16, 1);
-  // Time label
-  _display.setCursor(118, 36);
-  _display.print("M");
-  // Time remaining
-  const unsigned int remainingTimeMinutes = static_cast<unsigned int>(ceilf(status.remainingTimeSeconds / 60.0f));
-  _display.setFont(&FreeSans9pt7b);
-  _display.setCursor(86, 36);
-  _display.printf("%ld", remainingTimeMinutes);
-  // Time percentage
-  // const unsigned int targetDurationSeconds = status.targetDurationMinutes * 60;
-  // const unsigned int completedPercentage = static_cast<unsigned int>(ceilf(((targetDurationSeconds - status.remainingTimeSeconds) / targetDurationSeconds ) * 100.0f));
-  // _display.setCursor(106, 44);
-  // _display.printf("%ld%%", completedPercentage);
+  if (status.isDrying) {
+    const unsigned int remainingTimeMinutes = static_cast<unsigned int>(ceilf(status.remainingTimeSeconds / 60.0f));
 
-  const unsigned int targetDurationSeconds = status.targetDurationMinutes * 60U;
+    // Calculate the completed percentage.
+    const unsigned int targetDurationSeconds = status.targetDurationMinutes * 60U;
 
-unsigned int completedPercentage = 0U;
-if (targetDurationSeconds > 0U) {
-  const unsigned int elapsedSeconds =
-      (status.remainingTimeSeconds < targetDurationSeconds)
-          ? (targetDurationSeconds - status.remainingTimeSeconds)
-          : 0U;
-  const float pct =
-      (static_cast<float>(elapsedSeconds) / static_cast<float>(targetDurationSeconds)) * 100.0f;
-  const unsigned int rounded = static_cast<unsigned int>(ceilf(pct));
-  completedPercentage = (rounded > 100U) ? 100U : rounded;
-}
-  _display.setFont(&Org_01);
+    unsigned int completedPercentage = 0U;
+    if (targetDurationSeconds > 0U) {
+      const unsigned int elapsedSeconds = (status.remainingTimeSeconds < targetDurationSeconds)
+            ? (targetDurationSeconds - status.remainingTimeSeconds)
+            : 0U;
+      const float pct = (static_cast<float>(elapsedSeconds) / static_cast<float>(targetDurationSeconds)) * 100.0f;
+      const unsigned int rounded = static_cast<unsigned int>(ceilf(pct));
+      completedPercentage = (rounded > 100U) ? 100U : rounded;
+    }
 
-_display.setCursor(106, 44);
-_display.printf("%u%%", completedPercentage);
+    // Calculate the progress bars' width.
+    int16_t temperatureProgressBarWidth = 0;
+
+    const int currentTempClamped = status.currentTemperatureCelsius < 20
+      ? 20
+      : ((status.currentTemperatureCelsius > status.targetTemperatureCelsius)
+                 ? status.targetTemperatureCelsius
+                 : status.currentTemperatureCelsius);
+    temperatureProgressBarWidth = static_cast<int16_t>(map(currentTempClamped, 20, status.targetTemperatureCelsius, 0, PROGRESS_BAR_WIDTH));
+
+    int16_t timeProgressBarWidth = static_cast<int16_t>((completedPercentage * static_cast<unsigned int>(PROGRESS_BAR_WIDTH)) / 100U);
+
+    // Temperature progress bar frame
+    _display.drawRect(4, 40, 33, 5, 1);
+    // Temperature progress bar value
+    _display.fillRect(4, 40, temperatureProgressBarWidth, 5, 1);
+    // Temperature target
+    _display.setCursor(40, 44);
+    _display.printf("%ldC", status.targetTemperatureCelsius);
+    // Heating icon
+    _display.drawBitmap(21, 27, image_Heating_icon_bits, 8, 8, 1);
+    // Time icon
+    _display.drawBitmap(70, 21, image_Time_icon_bits, 15, 16, 1);
+    // Time label
+    _display.setCursor(118, 34);
+    _display.print("M");
+    // Time remaining
+    _display.setFont(&FreeSans9pt7b);
+    _display.setCursor(86, 34);
+    _display.printf("%ld", remainingTimeMinutes);
+    // Time percentage
+    _display.setFont(&Org_01);
+    _display.setCursor(106, 44);
+    _display.printf("%u%%", completedPercentage);
+    // Time progress bar frame
+    _display.drawRect(70, 40, 34, 5, 1);
+    // Time progress bar value
+    _display.fillRect(70, 40, timeProgressBarWidth, 5, 1);
+  } else {
+    // Time Ready label
+    _display.setFont(&FreeSans9pt7b);
+    _display.setCursor(71, 33);
+    _display.print("Ready");
+    // Time TO START label
+    _display.setFont(&Org_01);
+    _display.setCursor(72, 45);
+    _display.print("TO START");
+    _display.display();
+  }
 
   _display.display();  
 }
