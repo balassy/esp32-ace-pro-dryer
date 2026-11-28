@@ -238,31 +238,61 @@ void DisplayManager::updateSpinner() {
 
 void DisplayManager::printDryerStatus(const AceProManager::DryerStatus& status) {
   _clearContent();
-  _display.setTextColor(SSD1306_WHITE);
+
+  // Temperature frame
+  _display.drawRoundRect(0, 14, 62, 36, 4, 1);
+  // Temperature icon
+  _display.drawBitmap(4, 23, image_Temperature_icon_bits, 16, 16, 1);
+  // Temperature current
+  _display.setTextColor(1);
   _display.setFont(&FreeSans9pt7b);
-  
-  _display.drawBitmap(0, STATUS_BAR_HEIGHT + 4, thermometer_icon, 16, 16, SSD1306_WHITE);
-  _display.setCursor(24, STATUS_BAR_HEIGHT + 17);
-  // char tempLine[16];
+  _display.setCursor(27, 36);
+  _display.printf("%ld", status.currentTemperatureCelsius);
+  // Temperature current degree symbol
+  _display.drawEllipse(50, 26, 2, 2, 1);
+  // Temperature label
+  _display.setFont(&Org_01);
+  _display.setCursor(48, 36);
+  _display.print("C");
+  // Temperature target
+  _display.setCursor(36, 44);
+  _display.printf("%ldC", status.targetTemperatureCelsius);
 
-  if (status.isDrying) {
-    _display.printf("%ld / %ld C", status.currentTemperatureCelsius, status.targetTemperatureCelsius);
-    
-    _display.drawBitmap(0, STATUS_BAR_HEIGHT + 22, clock_icon_small, 16, 16, SSD1306_WHITE);
-    _display.setCursor(24, STATUS_BAR_HEIGHT + 10 + VALUE_CHAR_HEIGHT);
-    const unsigned int remainingTimeMinutes = static_cast<unsigned int>(ceilf(status.remainingTimeSeconds / 60.0f));
-    _display.printf("%ld min", remainingTimeMinutes);
-  } else {
-    _display.printf("%ld", status.currentTemperatureCelsius);
+  // Time frame
+  _display.drawRoundRect(66, 14, 62, 36, 4, 1);
+  // Time icon
+  _display.drawBitmap(69, 23, image_Time_icon_bits, 15, 16, 1);
+  // Time label
+  _display.setCursor(118, 36);
+  _display.print("M");
+  // Time remaining
+  const unsigned int remainingTimeMinutes = static_cast<unsigned int>(ceilf(status.remainingTimeSeconds / 60.0f));
+  _display.setFont(&FreeSans9pt7b);
+  _display.setCursor(86, 36);
+  _display.printf("%ld", remainingTimeMinutes);
+  // Time percentage
+  // const unsigned int targetDurationSeconds = status.targetDurationMinutes * 60;
+  // const unsigned int completedPercentage = static_cast<unsigned int>(ceilf(((targetDurationSeconds - status.remainingTimeSeconds) / targetDurationSeconds ) * 100.0f));
+  // _display.setCursor(106, 44);
+  // _display.printf("%ld%%", completedPercentage);
 
-    // Draw a 2px-radius degree ring slightly above the baseline
-    int16_t cx = _display.getCursorX() + 2;
-    int16_t cy = STATUS_BAR_HEIGHT + 17 - 10;
-    _display.drawCircle(cx, cy, 2, SSD1306_WHITE);
+  const unsigned int targetDurationSeconds = status.targetDurationMinutes * 60U;
 
-    _display.setCursor(cx + 5, STATUS_BAR_HEIGHT + 17);
-    _display.print("C");
-  }
+unsigned int completedPercentage = 0U;
+if (targetDurationSeconds > 0U) {
+  const unsigned int elapsedSeconds =
+      (status.remainingTimeSeconds < targetDurationSeconds)
+          ? (targetDurationSeconds - status.remainingTimeSeconds)
+          : 0U;
+  const float pct =
+      (static_cast<float>(elapsedSeconds) / static_cast<float>(targetDurationSeconds)) * 100.0f;
+  const unsigned int rounded = static_cast<unsigned int>(ceilf(pct));
+  completedPercentage = (rounded > 100U) ? 100U : rounded;
+}
+  _display.setFont(&Org_01);
+
+_display.setCursor(106, 44);
+_display.printf("%u%%", completedPercentage);
 
   _display.display();  
 }
